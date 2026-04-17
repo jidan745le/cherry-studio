@@ -91,6 +91,7 @@ export const UPDATE_MODEL_FIELD_MAP: Array<keyof UpdateModelDto | [keyof UpdateM
 /** Convert CreateModelDto to a NewUserModel row (shared by preset and custom paths). */
 function dtoToNewUserModel(dto: CreateModelDto): NewUserModel {
   return {
+    id: createUniqueModelId(dto.providerId, dto.modelId),
     providerId: dto.providerId,
     modelId: dto.modelId,
     presetModelId: null,
@@ -118,6 +119,7 @@ function mergedModelToNewUserModel(
   merged: Model
 ): NewUserModel {
   return {
+    id: createUniqueModelId(providerId, modelId),
     providerId,
     modelId,
     presetModelId,

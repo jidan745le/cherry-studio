@@ -3,9 +3,11 @@
  */
 
 import { userModelTable } from '@data/db/schemas/userModel'
+import { userProviderTable } from '@data/db/schemas/userProvider'
 import { modelService, UPDATE_MODEL_FIELD_MAP } from '@data/services/ModelService'
 import { ErrorCode } from '@shared/data/api'
 import type { UpdateModelDto } from '@shared/data/api/schemas/models'
+import { createUniqueModelId } from '@shared/data/types/model'
 import { setupTestDatabase } from '@test-helpers/db'
 import { and, eq, or } from 'drizzle-orm'
 import { describe, expect, it, vi } from 'vitest'
@@ -61,7 +63,12 @@ describe('ModelService.update', () => {
   const dbh = setupTestDatabase()
 
   async function seedExistingModel() {
+    await dbh.db.insert(userProviderTable).values({
+      providerId: 'openai',
+      name: 'OpenAI'
+    })
     await dbh.db.insert(userModelTable).values({
+      id: createUniqueModelId('openai', 'gpt-4o'),
       providerId: 'openai',
       modelId: 'gpt-4o',
       presetModelId: 'gpt-4o',
@@ -188,6 +195,11 @@ describe('ModelService.create', () => {
   const dbh = setupTestDatabase()
 
   it('null DTO fields do not clobber preset during merge', async () => {
+    await dbh.db.insert(userProviderTable).values({
+      providerId: 'openai',
+      name: 'OpenAI'
+    })
+
     const dto = {
       providerId: 'openai',
       modelId: 'gpt-4o'
