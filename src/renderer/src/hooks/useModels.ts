@@ -4,13 +4,14 @@ import { loggerService } from '@logger'
 import type { ConcreteApiPaths } from '@shared/data/api/apiTypes'
 import type { CreateModelDto, CreateModelsBatchDto, UpdateModelDto } from '@shared/data/api/schemas/models'
 import type { Model } from '@shared/data/types/model'
+import { createUniqueModelId } from '@shared/data/types/model'
 import { useCallback, useMemo } from 'react'
 
 const logger = loggerService.withContext('useModels')
 
-/** Helper to build `/models/:providerId/:modelId` concrete path (tsgo cannot resolve two-segment template literals) */
+/** Helper to build `/models/:uniqueModelId*` concrete path */
 function modelPath(providerId: string, modelId: string): ConcreteApiPaths {
-  return `/models/${encodeURIComponent(providerId)}/${encodeURIComponent(modelId)}` as ConcreteApiPaths
+  return `/models/${createUniqueModelId(providerId, modelId)}` as ConcreteApiPaths
 }
 
 const REFRESH_MODELS = ['/models'] as const

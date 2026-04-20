@@ -9,6 +9,7 @@
 import { modelService } from '@data/services/ModelService'
 import { providerRegistryService } from '@data/services/ProviderRegistryService'
 import { loggerService } from '@logger'
+import { DataApiErrorFactory } from '@shared/data/api'
 import type { ApiHandler, ApiMethods } from '@shared/data/api/apiTypes'
 import {
   CreateModelDtoSchema,
@@ -17,6 +18,7 @@ import {
   type ModelSchemas,
   UpdateModelDtoSchema
 } from '@shared/data/api/schemas/models'
+import { isUniqueModelId, parseUniqueModelId } from '@shared/data/types/model'
 
 /**
  * Handler type for a specific model endpoint
@@ -24,6 +26,19 @@ import {
 type ModelHandler<Path extends keyof ModelSchemas, Method extends ApiMethods<Path>> = ApiHandler<Path, Method>
 
 const logger = loggerService.withContext('DataApi:ModelHandlers')
+
+/**
+ * Parse a UniqueModelId from the transport layer, raising a 422 validation
+ * error (instead of a bare Error → 500) when the shape is malformed.
+ */
+const parseOrValidationError = (uniqueModelId: string) => {
+  if (!isUniqueModelId(uniqueModelId)) {
+    throw DataApiErrorFactory.validation({
+      uniqueModelId: [`Expected "providerId::modelId", got "${uniqueModelId}"`]
+    })
+  }
+  return parseUniqueModelId(uniqueModelId)
+}
 
 /**
  * Model API handlers implementation
@@ -83,18 +98,21 @@ export const modelHandlers: {
     }
   },
 
-  '/models/:providerId/:modelId': {
+  '/models/:uniqueModelId*': {
     GET: async ({ params }) => {
-      return await modelService.getByKey(params.providerId, params.modelId)
+      const { providerId, modelId } = parseOrValidationError(params.uniqueModelId)
+      return await modelService.getByKey(providerId, modelId)
     },
 
     PATCH: async ({ params, body }) => {
+      const { providerId, modelId } = parseOrValidationError(params.uniqueModelId)
       const parsed = UpdateModelDtoSchema.parse(body)
-      return await modelService.update(params.providerId, params.modelId, parsed)
+      return await modelService.update(providerId, modelId, parsed)
     },
 
     DELETE: async ({ params }) => {
-      await modelService.delete(params.providerId, params.modelId)
+      const { providerId, modelId } = parseOrValidationError(params.uniqueModelId)
+      await modelService.delete(providerId, modelId)
       return undefined
     }
   }

@@ -222,7 +222,7 @@ describe('useModelMutations', () => {
       await result.current.deleteModel('openai', 'gpt-4o')
     })
 
-    expect(mockDataApiService.delete).toHaveBeenCalledWith('/models/openai/gpt-4o')
+    expect(mockDataApiService.delete).toHaveBeenCalledWith('/models/openai::gpt-4o')
     expect(mockInvalidate).toHaveBeenCalledWith('/models')
   })
 
@@ -237,7 +237,7 @@ describe('useModelMutations', () => {
       await result.current.patchModel('openai', 'gpt-4o', { isEnabled: false })
     })
 
-    expect(mockDataApiService.patch).toHaveBeenCalledWith('/models/openai/gpt-4o', {
+    expect(mockDataApiService.patch).toHaveBeenCalledWith('/models/openai::gpt-4o', {
       body: { isEnabled: false }
     })
     expect(mockInvalidate).toHaveBeenCalledWith('/models')
@@ -264,7 +264,7 @@ describe('useModelMutations', () => {
     expect(mockInvalidate).not.toHaveBeenCalled()
   })
 
-  it('should encode model ID in path correctly', async () => {
+  it('should build uniqueModelId path correctly', async () => {
     const mockInvalidate = vi.fn().mockResolvedValue(undefined)
     mockUseInvalidateCache.mockImplementation(() => mockInvalidate)
     mockDataApiService.delete.mockResolvedValue({ deleted: true })
@@ -275,10 +275,10 @@ describe('useModelMutations', () => {
       await result.current.deleteModel('anthropic', 'claude-3-opus')
     })
 
-    expect(mockDataApiService.delete).toHaveBeenCalledWith('/models/anthropic/claude-3-opus')
+    expect(mockDataApiService.delete).toHaveBeenCalledWith('/models/anthropic::claude-3-opus')
   })
 
-  it('should encode model IDs that contain slashes', async () => {
+  it('should handle model IDs that contain slashes via uniqueModelId format', async () => {
     const mockInvalidate = vi.fn().mockResolvedValue(undefined)
     mockUseInvalidateCache.mockImplementation(() => mockInvalidate)
     mockDataApiService.delete.mockResolvedValue({ deleted: true })
@@ -289,6 +289,6 @@ describe('useModelMutations', () => {
       await result.current.deleteModel('cherryin', 'qwen/qwen3-vl-30b-a3b-thinking(free)')
     })
 
-    expect(mockDataApiService.delete).toHaveBeenCalledWith('/models/cherryin/qwen%2Fqwen3-vl-30b-a3b-thinking(free)')
+    expect(mockDataApiService.delete).toHaveBeenCalledWith('/models/cherryin::qwen/qwen3-vl-30b-a3b-thinking(free)')
   })
 })
