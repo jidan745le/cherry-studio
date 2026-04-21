@@ -69,6 +69,8 @@ function defaultUpdateItems(cache: unknown, items: ItemList): unknown {
   return items
 }
 
+type CollectionCacheValue = Array<Record<string, unknown>> | CollectionCacheObjectValue
+
 export interface UseReorderOptions {
   /**
    * Revalidate the collection key after a successful server write.
@@ -254,9 +256,26 @@ export function useReorder<TCollection extends ConcreteApiPaths>(
     [collectionUrl]
   )
 
+  const readItems = useCallback(
+    (current: CollectionCacheValue | undefined): Array<Record<string, unknown>> | undefined => {
+      if (Array.isArray(current)) return current
+      return current?.items
+    },
+    []
+  )
+
+  const wrapItems = useCallback(
+    (current: CollectionCacheValue | undefined, items: Array<Record<string, unknown>>): CollectionCacheValue => {
+      if (Array.isArray(current)) return items
+      return { ...(current ?? {}), items }
+    },
+    []
+  )
+
   const move = useCallback(
     async (id: string, anchor: OrderRequest) => {
       const current = readCurrent()
+<<<<<<< HEAD
       if (current === undefined) {
         logger.warn(`move called before data loaded at ${String(collectionUrl)}; ignored`)
         return
