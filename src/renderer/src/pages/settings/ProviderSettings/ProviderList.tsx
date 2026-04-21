@@ -3,7 +3,11 @@ import { dataApiService } from '@data/DataApiService'
 import { useReorder } from '@data/hooks/useReorder'
 import type { DropResult } from '@hello-pangea/dnd'
 import { loggerService } from '@logger'
-import { DraggableVirtualList, type DraggableVirtualListRef } from '@renderer/components/DraggableList'
+import {
+  DraggableVirtualList,
+  type DraggableVirtualListRef,
+  useDraggableReorder
+} from '@renderer/components/DraggableList'
 import { DeleteIcon, EditIcon } from '@renderer/components/Icons'
 import { ProviderAvatar } from '@renderer/components/ProviderAvatar'
 import { useProviderActions, useProviders } from '@renderer/hooks/useProviders'
@@ -23,7 +27,7 @@ import type { MenuProps } from 'antd'
 import { Dropdown, Input, Tag } from 'antd'
 import { Check, Filter, GripVertical, PlusIcon, Search, UserPen } from 'lucide-react'
 import type { FC } from 'react'
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 import useSWRImmutable from 'swr/immutable'
@@ -59,7 +63,7 @@ const ProviderList: FC<ProviderListProps> = ({ isOnboarding = false }) => {
   const navigate = useNavigate()
   const { providers, createProvider } = useProviders()
   const { updateProviderById, deleteProviderById } = useProviderActions()
-  const { move: moveProvider } = useReorder('/providers')
+  const { applyReorderedList } = useReorder('/providers')
   const { setTimeoutTimer } = useTimer()
   const [selectedProvider, _setSelectedProvider] = useState<Provider | undefined>(providers[0])
   const { t } = useTranslation()
@@ -362,56 +366,12 @@ const ProviderList: FC<ProviderListProps> = ({ isOnboarding = false }) => {
     return matchKeywordsInProvider(keywords, provider)
   })
 
-  const itemIndexMap = useMemo(() => {
-    const map = new Map<string, number>()
-    providers.forEach((provider, index) => {
-      map.set(provider.id, index)
-    })
-    return map
-  }, [providers])
-
-  const itemKey = useCallback(
-    (index: number) => {
-      const provider = filteredProviders[index]
-      if (!provider) return index
-      return itemIndexMap.get(provider.id) ?? index
-    },
-    [filteredProviders, itemIndexMap]
-  )
-
-  const handleReorder = useCallback(
-    async (result: DropResult) => {
-      if (!result.destination) return
-
-      const sourceIndex = result.source.index
-      const destIndex = result.destination.index
-      if (sourceIndex === destIndex) return
-
-      const movedProvider = filteredProviders[sourceIndex]
-      if (!movedProvider) return
-
-      const reorderedFiltered = [...filteredProviders]
-      const [dragged] = reorderedFiltered.splice(sourceIndex, 1)
-      if (!dragged) return
-      reorderedFiltered.splice(destIndex, 0, dragged)
-
-      const movedIndex = reorderedFiltered.findIndex((provider) => provider.id === movedProvider.id)
-      if (movedIndex === -1) return
-
-      if (reorderedFiltered.length === 1) {
-        await moveProvider(movedProvider.id, { position: 'first' })
-        return
-      }
-
-      if (movedIndex < reorderedFiltered.length - 1) {
-        await moveProvider(movedProvider.id, { before: reorderedFiltered[movedIndex + 1].id })
-        return
-      }
-
-      await moveProvider(movedProvider.id, { after: reorderedFiltered[movedIndex - 1].id })
-    },
-    [filteredProviders, moveProvider]
-  )
+  const { onDragEnd: handleReorder, itemKey } = useDraggableReorder({
+    originalList: providers,
+    filteredList: filteredProviders,
+    onUpdate: applyReorderedList,
+    itemKey: 'id'
+  })
 
   const handleDragStart = useCallback(() => {
     setDragging(true)
@@ -420,9 +380,7 @@ const ProviderList: FC<ProviderListProps> = ({ isOnboarding = false }) => {
   const handleDragEnd = useCallback(
     (result: DropResult) => {
       setDragging(false)
-      void handleReorder(result).catch((error) => {
-        logger.error('Failed to reorder providers', error as Error)
-      })
+      handleReorder(result)
     },
     [handleReorder]
   )
