@@ -27,6 +27,8 @@ import { asc, eq } from 'drizzle-orm'
 
 const logger = loggerService.withContext('DataApi:ProviderService')
 
+type NewUserProviderInput = Omit<NewUserProvider, 'orderKey'>
+
 /**
  * Convert database row to Provider entity
  */
@@ -136,7 +138,7 @@ class ProviderService {
    * Create a new provider
    */
   async create(dto: CreateProviderDto): Promise<Provider> {
-    const values: NewUserProvider = {
+    const values: NewUserProviderInput = {
       providerId: dto.providerId,
       presetProviderId: dto.presetProviderId ?? null,
       name: dto.name,
@@ -148,9 +150,11 @@ class ProviderService {
       providerSettings: dto.providerSettings ?? null
     }
 
-    const row = (await insertWithOrderKey(this.db, userProviderTable, values, {
-      pkColumn: userProviderTable.providerId
-    })) as UserProvider
+    const row = await this.db.transaction(async (tx) => {
+      return (await insertWithOrderKey(tx, userProviderTable, values, {
+        pkColumn: userProviderTable.providerId
+      })) as UserProvider
+    })
 
     logger.info('Created provider', { providerId: dto.providerId })
 
@@ -192,20 +196,24 @@ class ProviderService {
    * Insert-only — existing providers are silently skipped via onConflictDoNothing.
    * All user-customizable fields are preserved.
    */
-  async batchUpsert(providers: NewUserProvider[]): Promise<void> {
+  async batchUpsert(providers: NewUserProviderInput[]): Promise<void> {
     if (providers.length === 0) return
 
-    const existing = await this.db.select({ providerId: userProviderTable.providerId }).from(userProviderTable)
-    const existingIds = new Set(existing.map((row) => row.providerId))
-    const newProviders = providers.filter((provider) => !existingIds.has(provider.providerId))
+    let insertedCount = 0
+    await this.db.transaction(async (tx) => {
+      const existing = await tx.select({ providerId: userProviderTable.providerId }).from(userProviderTable)
+      const existingIds = new Set(existing.map((row) => row.providerId))
+      const newProviders = providers.filter((provider) => !existingIds.has(provider.providerId))
 
-    if (newProviders.length === 0) return
+      if (newProviders.length === 0) return
 
-    await insertManyWithOrderKey(this.db, userProviderTable, newProviders, {
-      pkColumn: userProviderTable.providerId
+      await insertManyWithOrderKey(tx, userProviderTable, newProviders, {
+        pkColumn: userProviderTable.providerId
+      })
+      insertedCount = newProviders.length
     })
 
-    logger.info('Batch upserted providers', { count: newProviders.length })
+    logger.info('Batch upserted providers', { count: insertedCount })
   }
 
   /**

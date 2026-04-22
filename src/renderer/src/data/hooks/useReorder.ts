@@ -31,12 +31,10 @@ const logger = loggerService.withContext('useReorder')
  * The optimistic path only needs `items`; any other fields are preserved as-is.
  * Item identity is read via the configured `idKey` (default `'id'`).
  */
-interface CollectionCacheObjectValue {
+interface CollectionCacheValue {
   items?: Array<Record<string, unknown>>
   [key: string]: unknown
 }
-
-type CollectionCacheValue = Array<Record<string, unknown>> | CollectionCacheObjectValue
 
 export interface UseReorderOptions {
   /**
@@ -151,29 +149,14 @@ export function useReorder<TCollection extends ConcreteApiPaths>(
     [readCache, collectionUrl]
   )
 
-  const readItems = useCallback(
-    (current: CollectionCacheValue | undefined): Array<Record<string, unknown>> | undefined => {
-      if (Array.isArray(current)) return current
-      return current?.items
-    },
-    []
-  )
-
-  const wrapItems = useCallback(
-    (current: CollectionCacheValue | undefined, items: Array<Record<string, unknown>>): CollectionCacheValue => {
-      if (Array.isArray(current)) return items
-      return { ...(current ?? {}), items }
-    },
-    []
-  )
-
   const move = useCallback(
     async (id: string, anchor: OrderRequest) => {
       setIsPending(true)
       const current = readCurrent()
-      const currentItems = readItems(current)
       const optimistic =
-        currentItems !== undefined ? wrapItems(current, computeOptimistic(currentItems, id, anchor, idKey)) : undefined
+        current?.items !== undefined
+          ? { ...current, items: computeOptimistic(current.items, id, anchor, idKey) }
+          : undefined
 
       try {
         if (optimistic) {
@@ -190,30 +173,21 @@ export function useReorder<TCollection extends ConcreteApiPaths>(
         setIsPending(false)
       }
     },
-    [
-      readCurrent,
-      readItems,
-      wrapItems,
-      computeOptimistic,
-      idKey,
-      writeCache,
-      invalidateCache,
-      collectionUrl,
-      patchOrder
-    ]
+    [readCurrent, computeOptimistic, idKey, writeCache, invalidateCache, collectionUrl, patchOrder]
   )
 
   const applyBatch = useCallback(
     async (moves: OrderBatchRequest['moves']) => {
       setIsPending(true)
       const current = readCurrent()
-      let optimisticItems = readItems(current)
+      let optimisticItems = current?.items
       if (optimisticItems) {
         for (const m of moves) {
           optimisticItems = computeOptimistic(optimisticItems, m.id, m.anchor, idKey)
         }
       }
-      const optimistic = optimisticItems !== undefined ? wrapItems(current, optimisticItems) : undefined
+      const optimistic =
+        optimisticItems !== undefined && current !== undefined ? { ...current, items: optimisticItems } : undefined
 
       try {
         if (optimistic) {
@@ -228,22 +202,12 @@ export function useReorder<TCollection extends ConcreteApiPaths>(
         setIsPending(false)
       }
     },
-    [
-      readCurrent,
-      readItems,
-      wrapItems,
-      computeOptimistic,
-      idKey,
-      writeCache,
-      invalidateCache,
-      collectionUrl,
-      patchBatch
-    ]
+    [readCurrent, computeOptimistic, idKey, writeCache, invalidateCache, collectionUrl, patchBatch]
   )
 
   const applyReorderedList = useCallback(
     async (newList: Array<Record<string, unknown>>) => {
-      const current = readItems(readCurrent()) ?? []
+      const current = readCurrent()?.items ?? []
       const moves = computeMinimalMoves(current, newList, idKey)
       if (moves.length === 0) return
       if (moves.length === 1) {
@@ -251,7 +215,7 @@ export function useReorder<TCollection extends ConcreteApiPaths>(
       }
       return applyBatch(moves)
     },
-    [readCurrent, readItems, idKey, move, applyBatch]
+    [readCurrent, idKey, move, applyBatch]
   )
 
   return { move, applyReorderedList, isPending }

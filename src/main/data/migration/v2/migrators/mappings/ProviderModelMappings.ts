@@ -152,7 +152,9 @@ const SYSTEM_PROVIDER_IDS = new Set([
   'zai'
 ])
 
-export function transformProvider(legacy: LegacyProvider, settings: OldLlmSettings): NewUserProvider {
+type NewUserProviderInput = Omit<NewUserProvider, 'orderKey'>
+
+export function transformProvider(legacy: LegacyProvider, settings: OldLlmSettings): NewUserProviderInput {
   const endpointType = ENDPOINT_MAP[legacy.type]
   if (legacy.type && !endpointType) {
     logger.warn('Unknown provider type dropped during migration', { providerId: legacy.id, legacyType: legacy.type })

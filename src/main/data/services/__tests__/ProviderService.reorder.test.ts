@@ -33,6 +33,18 @@ describe('ProviderService reorder', () => {
     expect(await readOrder()).toEqual(['openai', 'anthropic', 'gemini', 'grok'])
   })
 
+  it('batchUpsert appends only missing providers in input order', async () => {
+    await seedProviders()
+
+    await providerService.batchUpsert([
+      { providerId: 'anthropic', name: 'Anthropic duplicate' },
+      { providerId: 'grok', name: 'Grok' },
+      { providerId: 'openrouter', name: 'OpenRouter' }
+    ])
+
+    expect(await readOrder()).toEqual(['openai', 'anthropic', 'gemini', 'grok', 'openrouter'])
+  })
+
   it('moves a provider to the first position', async () => {
     await seedProviders()
 
