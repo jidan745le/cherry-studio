@@ -76,7 +76,7 @@ export default function ProviderSettingsPage({ isOnboarding = false }: ProviderS
   )
 
   return (
-    <div className="flex h-full min-h-0 w-full overflow-hidden bg-(--color-background)">
+    <div className="scope-tailwind-default-theme flex h-full min-h-0 w-full overflow-hidden bg-(--color-background)">
       <ProviderList
         providers={providers}
         selectedProviderId={selectedProviderId}
