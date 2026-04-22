@@ -9,7 +9,6 @@ import type { Model } from '@shared/data/types/model'
 import { Bolt, Minus } from 'lucide-react'
 import React, { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import styled from 'styled-components'
 
 import { FreeTrialModelTagV2 } from '../components/FreeTrialModelTagV2'
 import ModelIdWithTagsV2 from '../components/ModelIdWithTagsV2'
@@ -38,19 +37,25 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
 
   const healthResults = useMemo(
     () =>
-      modelStatus?.keyResults?.map((kr) => ({
-        status: kr.status,
-        latency: kr.latency,
-        error: kr.error,
-        label: maskApiKey(kr.key)
+      modelStatus?.keyResults?.map((keyResult) => ({
+        status: keyResult.status,
+        latency: keyResult.latency,
+        error: keyResult.error,
+        label: maskApiKey(keyResult.key)
       })) || [],
     [modelStatus?.keyResults]
   )
 
-  const hasFailedResult = useMemo(() => healthResults.some((r) => r.status === HealthStatus.FAILED), [healthResults])
+  const hasFailedResult = useMemo(
+    () => healthResults.some((result) => result.status === HealthStatus.FAILED),
+    [healthResults]
+  )
 
   const handleErrorClick = useMemo(() => {
-    if (!hasFailedResult) return undefined
+    if (!hasFailedResult) {
+      return undefined
+    }
+
     return (result: HealthResult) => {
       if (result.error) {
         showErrorDetailPopup({ error: result.error })
@@ -67,63 +72,62 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
   }, [model, onRemove])
 
   return (
-    <>
-      <ListItem ref={ref}>
-        <RowFlex className="flex-1 items-center gap-2.5">
-          {(() => {
-            const Icon = getModelLogo(model)
-            return Icon ? (
-              <Icon.Avatar size={24} />
-            ) : (
-              <Avatar className="h-6 w-6">
-                <AvatarFallback>{model?.name?.[0]?.toUpperCase()}</AvatarFallback>
-              </Avatar>
-            )
-          })()}
-          <ModelIdWithTagsV2
-            model={model}
-            showIdentifier={showIdentifier}
-            style={{
-              flex: 1,
-              width: 0,
-              overflow: 'hidden'
-            }}
-          />
-          <FreeTrialModelTagV2 modelId={model.id} providerId={model.providerId} />
+    <div ref={ref} className="flex items-center gap-2 px-3 py-[6px] text-(--color-text) leading-none">
+      <RowFlex className="flex-1 items-center gap-2">
+        {(() => {
+          const Icon = getModelLogo(model)
+          return Icon ? (
+            <Icon.Avatar size={20} />
+          ) : (
+            <Avatar className="h-5 w-5">
+              <AvatarFallback>{model.name?.[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+          )
+        })()}
+        <ModelIdWithTagsV2
+          model={model}
+          fontSize={13}
+          showIdentifier={showIdentifier}
+          style={{
+            flex: 1,
+            width: 0,
+            overflow: 'hidden'
+          }}
+        />
+        <FreeTrialModelTagV2 modelId={model.id} providerId={model.providerId} />
+      </RowFlex>
+      <RowFlex className="items-center gap-1">
+        <HealthStatusIndicator
+          results={healthResults}
+          loading={isChecking}
+          showLatency
+          onErrorClick={handleErrorClick}
+        />
+        <RowFlex className="items-center">
+          <Tooltip content={t('models.edit')}>
+            <Button
+              variant="ghost"
+              onClick={handleEdit}
+              disabled={disabled}
+              size="icon-sm"
+              className="size-7 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground">
+              <Bolt size={12} />
+            </Button>
+          </Tooltip>
+          <Tooltip content={t('settings.models.manage.remove_model')}>
+            <Button
+              variant="ghost"
+              onClick={handleRemove}
+              disabled={disabled}
+              size="icon-sm"
+              className="size-7 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground">
+              <Minus size={12} />
+            </Button>
+          </Tooltip>
         </RowFlex>
-        <RowFlex className="items-center gap-1.5">
-          <HealthStatusIndicator
-            results={healthResults}
-            loading={isChecking}
-            showLatency
-            onErrorClick={handleErrorClick}
-          />
-          <RowFlex className="items-center">
-            <Tooltip content={t('models.edit')}>
-              <Button variant="ghost" onClick={handleEdit} disabled={disabled} size="icon">
-                <Bolt size={14} />
-              </Button>
-            </Tooltip>
-            <Tooltip content={t('settings.models.manage.remove_model')}>
-              <Button variant="ghost" onClick={handleRemove} disabled={disabled} size="icon">
-                <Minus size={14} />
-              </Button>
-            </Tooltip>
-          </RowFlex>
-        </RowFlex>
-      </ListItem>
-    </>
+      </RowFlex>
+    </div>
   )
 }
-
-const ListItem = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  color: var(--color-text);
-  font-size: 14px;
-  line-height: 1;
-`
 
 export default memo(ModelListItem)

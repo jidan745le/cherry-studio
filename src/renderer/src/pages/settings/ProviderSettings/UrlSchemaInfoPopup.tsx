@@ -9,7 +9,7 @@ import { getFancyProviderName } from '@renderer/utils/provider.v2'
 import { ENDPOINT_TYPE } from '@shared/data/types/model'
 import { Descriptions, Modal } from 'antd'
 import { Eye, EyeOff } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 
@@ -41,9 +41,10 @@ interface Props extends ShowParams {
 
 const PopupContainer = ({ id, apiKey: newApiKey, baseUrl, type, name, resolve }: Props) => {
   const { t } = useTranslation()
-  const { providers } = useProviders()
+  const { providers: rawProviders } = useProviders()
   const [open, setOpen] = useState(true)
   const [showFullKey, setShowFullKey] = useState(false)
+  const providers = useMemo(() => (Array.isArray(rawProviders) ? rawProviders : []), [rawProviders])
 
   const foundProvider = providers.find((p) => p.id === id)
   const defaultEndpoint = foundProvider?.defaultChatEndpoint ?? ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS

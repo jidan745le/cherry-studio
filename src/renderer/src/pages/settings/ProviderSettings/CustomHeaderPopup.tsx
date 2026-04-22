@@ -9,6 +9,7 @@ import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SettingHelpText } from '..'
+import { applyProviderCustomHeaderSideEffects } from './adapters/providerSettingsSideEffects'
 
 interface ShowParams {
   providerId: string
@@ -37,11 +38,11 @@ const PopupContainer: React.FC<Props> = ({ providerId, resolve }) => {
     try {
       const parsedHeaders = headerText.trim() ? JSON.parse(headerText) : {}
 
-      // Copilot: dual-write to v2 providerSettings AND copilot Redux
-      // (aiCore still reads copilot Redux until Phase 5B)
-      if (providerId === 'copilot') {
-        updateDefaultHeaders(parsedHeaders)
-      }
+      applyProviderCustomHeaderSideEffects({
+        providerId,
+        headers: parsedHeaders,
+        updateCopilotHeaders: updateDefaultHeaders
+      })
 
       void updateProvider({ providerSettings: { ...provider?.settings, extraHeaders: parsedHeaders } })
 
