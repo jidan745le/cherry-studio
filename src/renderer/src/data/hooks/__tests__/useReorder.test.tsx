@@ -411,7 +411,6 @@ describe('useReorder - idKey option', () => {
     )
   })
 })
-
 // ---------------------------------------------------------------------------
 // Cache-shape coverage: the three default shapes, plus custom-accessor and
 // graceful degradation for "cache not yet loaded" and "unrecognized shape".
