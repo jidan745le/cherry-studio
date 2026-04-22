@@ -10,7 +10,6 @@
  *
  */
 
-import { generateOrderKeyBetween } from '@data/services/utils/orderKey'
 import {
   type ApiFeatures,
   ApiFeaturesSchema,
@@ -31,7 +30,7 @@ const { createInsertSchema, createSelectSchema } = createSchemaFactory({ zodInst
 
 import type { EndpointType } from '@shared/data/types/model'
 
-import { createUpdateTimestamps, orderKeyIndex } from './_columnHelpers'
+import { createUpdateTimestamps, orderKeyColumns, orderKeyIndex } from './_columnHelpers'
 
 export const userProviderTable = sqliteTable(
   'user_provider',
@@ -68,9 +67,7 @@ export const userProviderTable = sqliteTable(
     isEnabled: integer({ mode: 'boolean' }).default(true),
 
     /** Fractional-indexing order key used by standard reorder endpoints */
-    orderKey: text('order_key')
-      .notNull()
-      .$defaultFn(() => generateOrderKeyBetween(null, null)),
+    ...orderKeyColumns,
 
     ...createUpdateTimestamps
   },
