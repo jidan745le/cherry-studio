@@ -6,7 +6,7 @@ import { useDynamicLabelWidth } from '@renderer/hooks/useDynamicLabelWidth'
 import { useModelMutations, useModels } from '@renderer/hooks/useModels'
 import { getDefaultGroupName } from '@renderer/utils'
 import { isNewApiProvider } from '@renderer/utils/provider.v2'
-import { ENDPOINT_TYPE, type EndpointType, type Model } from '@shared/data/types/model'
+import { ENDPOINT_TYPE, type EndpointType, type Model, parseUniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import type { FormProps } from 'antd'
 import { Form, Input, Modal, Select } from 'antd'
@@ -109,7 +109,7 @@ const PopupContainer: React.FC<Props> = ({ title, provider, resolve, model, endp
         initialValues={
           model
             ? {
-                id: model.id,
+                id: model.apiModelId ?? parseUniqueModelId(model.id).modelId,
                 name: model.name,
                 group: model.group,
                 endpointType: endpointType ?? ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS

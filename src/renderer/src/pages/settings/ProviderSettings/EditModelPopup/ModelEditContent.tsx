@@ -20,8 +20,7 @@ import {
 import { useDynamicLabelWidth } from '@renderer/hooks/useDynamicLabelWidth'
 import { getDefaultGroupName } from '@renderer/utils'
 import { isNewApiProvider } from '@renderer/utils/provider.v2'
-import type { Model } from '@shared/data/types/model'
-import { MODEL_CAPABILITY } from '@shared/data/types/model'
+import { type Model, MODEL_CAPABILITY, parseUniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import type { ModalProps } from 'antd'
 import { Divider, Form, Input, InputNumber, Modal, Select } from 'antd'
@@ -84,6 +83,8 @@ const ModelEditContent: FC<ModelEditContentProps & ModalProps> = ({ provider, mo
   const [isCustomCurrency, setIsCustomCurrency] = useState(!symbols.includes(readCurrency(model)))
   const [supportsStreaming, setSupportsStreaming] = useState(model.supportsStreaming)
   const [hasUserModified, setHasUserModified] = useState(false)
+
+  const apiModelId = useMemo(() => model.apiModelId ?? parseUniqueModelId(model.id).modelId, [model])
 
   const labelWidth = useDynamicLabelWidth([t('settings.models.add.endpoint_type.label')])
 
@@ -249,7 +250,7 @@ const ModelEditContent: FC<ModelEditContentProps & ModalProps> = ({ provider, mo
         colon={false}
         style={{ marginTop: 15 }}
         initialValues={{
-          id: model.id,
+          id: apiModelId,
           name: model.name,
           group: model.group,
           endpointType: model.endpointTypes?.[0],
@@ -270,7 +271,6 @@ const ModelEditContent: FC<ModelEditContentProps & ModalProps> = ({ provider, mo
               spellCheck={false}
               maxLength={200}
               disabled={true}
-              value={model.id}
               onChange={(e) => {
                 const value = e.target.value
                 form.setFieldValue('name', value)
@@ -281,8 +281,7 @@ const ModelEditContent: FC<ModelEditContentProps & ModalProps> = ({ provider, mo
                   size={14}
                   style={{ cursor: 'pointer' }}
                   onClick={() => {
-                    const val = form.getFieldValue('name')
-                    void navigator.clipboard.writeText((val.id || model.id) as string)
+                    void navigator.clipboard.writeText(apiModelId)
                     window.toast.success(t('message.copied'))
                   }}
                 />

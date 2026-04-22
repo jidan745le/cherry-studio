@@ -1,627 +1,271 @@
-import { Button } from '@cherrystudio/ui'
-import { dataApiService } from '@data/DataApiService'
-import { useReorder } from '@data/hooks/useReorder'
-import type { DropResult } from '@hello-pangea/dnd'
-import { loggerService } from '@logger'
-import { DraggableVirtualList, type DraggableVirtualListRef } from '@renderer/components/DraggableList'
-import { DeleteIcon, EditIcon } from '@renderer/components/Icons'
-import { ProviderAvatar } from '@renderer/components/ProviderAvatar'
-import { useProviderActions, useProviders } from '@renderer/hooks/useProviders'
-import { useTimer } from '@renderer/hooks/useTimer'
-import ImageStorage from '@renderer/services/ImageStorage'
-import { uuid } from '@renderer/utils'
+import {
+  Badge,
+  MenuItem,
+  MenuList,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+  ReorderableList
+} from '@cherrystudio/ui'
+import ModelNotesPopup from '@renderer/pages/settings/ProviderSettings/ModelNotesPopup'
+import { cn } from '@renderer/utils'
 import {
   getFancyProviderName,
   isAnthropicSupportedProvider,
   isSystemProvider,
   matchKeywordsInProvider
 } from '@renderer/utils/provider.v2'
-import { ENDPOINT_TYPE, type EndpointType } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
-import { useNavigate, useSearch } from '@tanstack/react-router'
-import type { MenuProps } from 'antd'
-import { Dropdown, Input, Tag } from 'antd'
-import { Check, Filter, GripVertical, PlusIcon, Search, UserPen } from 'lucide-react'
-import type { FC } from 'react'
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Check, Edit, Filter, PlusIcon, Search, Trash2, UserPen } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import styled from 'styled-components'
-import useSWRImmutable from 'swr/immutable'
 
-import AddProviderPopup from './AddProviderPopup'
-import ModelNotesPopup from './ModelNotesPopup'
-import ProviderSetting from './ProviderSetting'
-import UrlSchemaInfoPopup from './UrlSchemaInfoPopup'
-
-const logger = loggerService.withContext('ProviderList')
-
-const BUTTON_WRAPPER_HEIGHT = 50
-
-const getIsOvmsSupported = async (): Promise<boolean> => {
-  try {
-    const result = await window.api.ovms.isSupported()
-    return result
-  } catch (e) {
-    logger.warn('Fetching isOvmsSupported failed. Fallback to false.', e as Error)
-    return false
-  }
-}
+import ProviderListItem from './components/ProviderListItem'
 
 interface ProviderListProps {
-  /** Whether in onboarding mode for new users */
-  isOnboarding?: boolean
+  providers: Provider[]
+  selectedProviderId?: string
+  providerLogos: Record<string, string>
+  isOvmsSupported: boolean
+  agentFilterEnabled: boolean
+  onAgentFilterEnabledChange: (enabled: boolean) => void
+  onSelectProvider: (providerId: string) => void
+  onAddProvider: () => Promise<void>
+  onEditProvider: (provider: Provider) => Promise<void>
+  onDeleteProvider: (provider: Provider) => Promise<void>
+  onReorder: (providers: Provider[]) => Promise<void>
 }
 
-const ProviderList: FC<ProviderListProps> = ({ isOnboarding = false }) => {
-  // TODO: Define validateSearch in routes/settings/provider.tsx and replace with Route.useSearch()
-  // for type-safe search params. Currently using untyped useSearch as a stopgap after removing react-router-dom.
-  const search = useSearch({ strict: false }) as Record<string, string | undefined>
-  const navigate = useNavigate()
-  const { providers, createProvider } = useProviders()
-  const { updateProviderById, deleteProviderById } = useProviderActions()
-  const { move: moveProvider } = useReorder('/providers')
-  const { setTimeoutTimer } = useTimer()
-  const [selectedProvider, _setSelectedProvider] = useState<Provider | undefined>(providers[0])
+export default function ProviderList({
+  providers,
+  selectedProviderId,
+  providerLogos,
+  isOvmsSupported,
+  agentFilterEnabled,
+  onAgentFilterEnabledChange,
+  onSelectProvider,
+  onAddProvider,
+  onEditProvider,
+  onDeleteProvider,
+  onReorder
+}: ProviderListProps) {
   const { t } = useTranslation()
-  const [searchText, setSearchText] = useState<string>('')
+  const [searchText, setSearchText] = useState('')
   const [dragging, setDragging] = useState(false)
-  const [agentFilterEnabled, setAgentFilterEnabled] = useState(false)
-  const [providerLogos, setProviderLogos] = useState<Record<string, string>>({})
-  const listRef = useRef<DraggableVirtualListRef>(null)
+  const [contextProviderId, setContextProviderId] = useState<string | null>(null)
+  const itemRefs = useRef(new Map<string, HTMLDivElement | null>())
 
-  const { data: isOvmsSupported } = useSWRImmutable('ovms/isSupported', getIsOvmsSupported)
-
-  const setSelectedProvider = useCallback((provider: Provider | undefined) => {
-    startTransition(() => _setSelectedProvider(provider))
-  }, [])
-
-  useEffect(() => {
-    if (!selectedProvider && providers[0]) {
-      setSelectedProvider(providers[0])
-    }
-  }, [providers, selectedProvider, setSelectedProvider])
-
-  useEffect(() => {
-    const loadAllLogos = async () => {
-      const logos: Record<string, string> = {}
-      for (const provider of providers) {
-        if (provider.id) {
-          try {
-            const logoData = await ImageStorage.get(`provider-${provider.id}`)
-            if (logoData) {
-              logos[provider.id] = logoData
-            }
-          } catch (error) {
-            logger.error(`Failed to load logo for provider ${provider.id}`, error as Error)
-          }
-        }
-      }
-      setProviderLogos(logos)
-    }
-
-    void loadAllLogos()
-  }, [providers])
-
-  useEffect(() => {
-    let shouldUpdate = false
-
-    // Handle filter param first - when filter is enabled, ignore id param
-    if (search.filter === 'agent') {
-      setAgentFilterEnabled(true)
-      shouldUpdate = true
-    } else if (search.id) {
-      const providerId = search.id
-      const provider = providers.find((p) => p.id === providerId)
-      if (provider) {
-        setSelectedProvider(provider)
-        // 滚动到选中的 provider
-        const index = providers.findIndex((p) => p.id === providerId)
-        if (index >= 0) {
-          setTimeoutTimer(
-            'scroll-to-selected-provider',
-            () => listRef.current?.scrollToIndex(index, { align: 'center' }),
-            100
-          )
-        }
-      } else {
-        setSelectedProvider(providers[0])
-      }
-      shouldUpdate = true
-    }
-
-    if (shouldUpdate) {
-      // FIXME: Using navigate + Object.fromEntries to strip consumed params is a workaround.
-      // Ideal: define validateSearch on the route so navigate({ search }) is fully typed,
-      // and consumed params can be cleared without manual filtering or type casts.
-      const restSearch = Object.fromEntries(Object.entries(search).filter(([key]) => key !== 'filter' && key !== 'id'))
-      void navigate({ to: '/settings/provider', search: restSearch as Record<string, string>, replace: true })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providers, search.filter, search.id, navigate, setSelectedProvider, setTimeoutTimer])
-
-  const resolveDefaultEndpoint = useCallback((type?: string): EndpointType => {
-    switch (type) {
-      case 'anthropic':
-      case 'vertex-anthropic':
-        return ENDPOINT_TYPE.ANTHROPIC_MESSAGES
-      case 'openai-response':
-        return ENDPOINT_TYPE.OPENAI_RESPONSES
-      case 'gemini':
-      case 'vertexai':
-        return ENDPOINT_TYPE.GOOGLE_GENERATE_CONTENT
-      case 'ollama':
-        return ENDPOINT_TYPE.OLLAMA_CHAT
-      default:
-        return ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS
-    }
-  }, [])
-
-  // Handle provider add key from URL schema
-  useEffect(() => {
-    const handleProviderAddKey = async (data: {
-      id: string
-      apiKey: string
-      baseUrl: string
-      type?: string
-      name?: string
-    }) => {
-      const { id } = data
-
-      const { updatedProvider, isNew, displayName } = await UrlSchemaInfoPopup.show(data as any)
-      void navigate({ to: '/settings/provider', search: { id } })
-
-      if (!updatedProvider) {
-        return
+  const filteredProviders = useMemo(() => {
+    return providers.filter((provider) => {
+      if (provider.id === 'ovms' && !isOvmsSupported) {
+        return false
       }
 
-      const defaultChatEndpoint = resolveDefaultEndpoint(updatedProvider.type)
-      const endpointConfigs = updatedProvider.apiHost
-        ? {
-            [defaultChatEndpoint]: {
-              baseUrl: updatedProvider.apiHost
-            }
-          }
-        : undefined
-
-      if (isNew) {
-        await createProvider({
-          providerId: updatedProvider.id,
-          name: updatedProvider.name || id,
-          defaultChatEndpoint,
-          endpointConfigs
-        })
-      } else {
-        await updateProviderById(updatedProvider.id, {
-          name: updatedProvider.name,
-          defaultChatEndpoint,
-          endpointConfigs
-        })
+      if (agentFilterEnabled && !isAnthropicSupportedProvider(provider)) {
+        return false
       }
 
-      if (updatedProvider.apiKey?.trim()) {
-        await dataApiService.post(`/providers/${updatedProvider.id}/api-keys` as const, {
-          body: { key: updatedProvider.apiKey.trim() }
-        })
-      }
-
-      const created = providers.find((p) => p.id === id) ?? (updatedProvider as unknown as Provider)
-      setSelectedProvider(created)
-      window.toast.success(t('settings.models.provider_key_added', { provider: displayName }))
-    }
-
-    // 检查 URL 参数
-    const addProviderData = search.addProviderData
-    if (!addProviderData) {
-      return
-    }
-
-    try {
-      const { id, apiKey: newApiKey, baseUrl, type, name } = JSON.parse(addProviderData)
-      if (!id || !newApiKey || !baseUrl) {
-        window.toast.error(t('settings.models.provider_key_add_failed_by_invalid_data'))
-        void navigate({ to: '/settings/provider' })
-        return
-      }
-
-      void handleProviderAddKey({ id, apiKey: newApiKey, baseUrl, type, name })
-    } catch (error) {
-      window.toast.error(t('settings.models.provider_key_add_failed_by_invalid_data'))
-      void navigate({ to: '/settings/provider' })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createProvider, navigate, providers, resolveDefaultEndpoint, search.addProviderData, t, updateProviderById])
-
-  const onAddProvider = async () => {
-    const { name: providerName, defaultChatEndpoint, logo } = await AddProviderPopup.show()
-
-    if (!providerName.trim()) {
-      return
-    }
-
-    const providerId = uuid()
-
-    if (logo) {
-      try {
-        await ImageStorage.set(`provider-${providerId}`, logo)
-        setProviderLogos((prev) => ({ ...prev, [providerId]: logo }))
-      } catch (error) {
-        logger.error('Failed to save logo', error as Error)
-        window.toast.error(t('message.error.save_provider_logo'))
-      }
-    }
-
-    const newProvider = await createProvider({ providerId, name: providerName.trim(), defaultChatEndpoint })
-    setSelectedProvider(newProvider)
-  }
-
-  const getDropdownMenus = (provider: Provider): MenuProps['items'] => {
-    const noteMenu = {
-      label: t('settings.provider.notes.title'),
-      key: 'notes',
-      icon: <UserPen size={14} />,
-      onClick: () => ModelNotesPopup.show({ providerId: provider.id })
-    }
-
-    const editMenu = {
-      label: t('common.edit'),
-      key: 'edit',
-      icon: <EditIcon size={14} />,
-      async onClick() {
-        const { name, defaultChatEndpoint, logoFile, logo } = await AddProviderPopup.show(provider)
-
-        if (name) {
-          await updateProviderById(provider.id, { name, defaultChatEndpoint })
-          if (provider.id) {
-            if (logo) {
-              try {
-                await ImageStorage.set(`provider-${provider.id}`, logo)
-                setProviderLogos((prev) => ({
-                  ...prev,
-                  [provider.id]: logo
-                }))
-              } catch (error) {
-                logger.error('Failed to save logo', error as Error)
-                window.toast.error(t('message.error.update_provider_logo'))
-              }
-            } else if (logo === undefined && logoFile === undefined) {
-              try {
-                await ImageStorage.set(`provider-${provider.id}`, '')
-                setProviderLogos((prev) => {
-                  const newLogos = { ...prev }
-                  delete newLogos[provider.id]
-                  return newLogos
-                })
-              } catch (error) {
-                logger.error('Failed to reset logo', error as Error)
-              }
-            }
-          }
-        }
-      }
-    }
-
-    const deleteMenu = {
-      label: t('common.delete'),
-      key: 'delete',
-      icon: <DeleteIcon size={14} className="lucide-custom" />,
-      danger: true,
-      async onClick() {
-        window.modal.confirm({
-          title: t('settings.provider.delete.title'),
-          content: t('settings.provider.delete.content'),
-          okButtonProps: { danger: true },
-          okText: t('common.delete'),
-          centered: true,
-          onOk: async () => {
-            // 删除provider前先清理其logo
-            if (provider.id) {
-              try {
-                await ImageStorage.remove(`provider-${provider.id}`)
-                setProviderLogos((prev) => {
-                  const newLogos = { ...prev }
-                  delete newLogos[provider.id]
-                  return newLogos
-                })
-              } catch (error) {
-                logger.error('Failed to delete logo', error as Error)
-              }
-            }
-
-            setSelectedProvider(providers.find((p) => isSystemProvider(p)) ?? providers[0])
-            await deleteProviderById(provider.id)
-          }
-        })
-      }
-    }
-
-    const menus = [editMenu, noteMenu, deleteMenu]
-
-    if (providers.filter((p) => p.id === provider.id).length > 1) {
-      return menus
-    }
-
-    if (isSystemProvider(provider)) {
-      return [noteMenu]
-    } else {
-      return menus
-    }
-  }
-
-  const filteredProviders = providers.filter((provider) => {
-    // don't show it when isOvmsSupported is loading
-    if (provider.id === 'ovms' && !isOvmsSupported) {
-      return false
-    }
-
-    // Filter by agent support
-    if (agentFilterEnabled && !isAnthropicSupportedProvider(provider)) {
-      return false
-    }
-
-    const keywords = searchText.toLowerCase().split(/\s+/).filter(Boolean)
-    return matchKeywordsInProvider(keywords, provider)
-  })
-
-  const itemIndexMap = useMemo(() => {
-    const map = new Map<string, number>()
-    providers.forEach((provider, index) => {
-      map.set(provider.id, index)
+      const keywords = searchText.toLowerCase().split(/\s+/).filter(Boolean)
+      return matchKeywordsInProvider(keywords, provider)
     })
-    return map
+  }, [agentFilterEnabled, isOvmsSupported, providers, searchText])
+
+  const providerCounts = useMemo(() => {
+    return providers.reduce<Map<string, number>>((counts, provider) => {
+      counts.set(provider.id, (counts.get(provider.id) ?? 0) + 1)
+      return counts
+    }, new Map())
   }, [providers])
 
-  const itemKey = useCallback(
-    (index: number) => {
-      const provider = filteredProviders[index]
-      if (!provider) return index
-      return itemIndexMap.get(provider.id) ?? index
-    },
-    [filteredProviders, itemIndexMap]
-  )
+  const setProviderItemRef = useCallback((providerId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      itemRefs.current.set(providerId, element)
+      return
+    }
 
-  const handleReorder = useCallback(
-    async (result: DropResult) => {
-      if (!result.destination) return
-
-      const sourceIndex = result.source.index
-      const destIndex = result.destination.index
-      if (sourceIndex === destIndex) return
-
-      const movedProvider = filteredProviders[sourceIndex]
-      if (!movedProvider) return
-
-      const reorderedFiltered = [...filteredProviders]
-      const [dragged] = reorderedFiltered.splice(sourceIndex, 1)
-      if (!dragged) return
-      reorderedFiltered.splice(destIndex, 0, dragged)
-
-      const movedIndex = reorderedFiltered.findIndex((provider) => provider.id === movedProvider.id)
-      if (movedIndex === -1) return
-
-      if (reorderedFiltered.length === 1) {
-        await moveProvider(movedProvider.id, { position: 'first' })
-        return
-      }
-
-      if (movedIndex < reorderedFiltered.length - 1) {
-        await moveProvider(movedProvider.id, { before: reorderedFiltered[movedIndex + 1].id })
-        return
-      }
-
-      await moveProvider(movedProvider.id, { after: reorderedFiltered[movedIndex - 1].id })
-    },
-    [filteredProviders, moveProvider]
-  )
-
-  const handleDragStart = useCallback(() => {
-    setDragging(true)
+    itemRefs.current.delete(providerId)
   }, [])
 
-  const handleDragEnd = useCallback(
-    (result: DropResult) => {
-      setDragging(false)
-      void handleReorder(result).catch((error) => {
-        logger.error('Failed to reorder providers', error as Error)
+  useEffect(() => {
+    if (!selectedProviderId) {
+      return
+    }
+
+    const scrollSelectedItem = () => {
+      itemRefs.current.get(selectedProviderId)?.scrollIntoView?.({
+        block: 'center',
+        behavior: 'smooth'
       })
-    },
-    [handleReorder]
-  )
+    }
+
+    if (typeof window.requestAnimationFrame !== 'function') {
+      scrollSelectedItem()
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(scrollSelectedItem)
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [filteredProviders, selectedProviderId])
+
+  const handleDragStateChange = useCallback((nextDragging: boolean) => {
+    setDragging(nextDragging)
+    if (nextDragging) {
+      setContextProviderId(null)
+    }
+  }, [])
 
   return (
-    <Container className="selectable">
-      <ProviderListContainer>
-        <AddButtonWrapper>
-          <Input
-            type="text"
-            placeholder={t('settings.provider.search')}
-            value={searchText}
-            style={{ borderRadius: 'var(--list-item-border-radius)', height: 35 }}
-            prefix={<Search size={14} />}
-            suffix={
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      label: t('settings.provider.filter.all'),
-                      key: 'all',
-                      icon: agentFilterEnabled ? <CheckPlaceholder /> : <Check size={14} />,
-                      onClick: () => setAgentFilterEnabled(false)
-                    },
-                    {
-                      label: t('settings.provider.filter.agent'),
-                      key: 'agent',
-                      icon: agentFilterEnabled ? <Check size={14} /> : <CheckPlaceholder />,
-                      onClick: () => setAgentFilterEnabled(true)
-                    }
-                  ]
-                }}
-                trigger={['click']}>
-                <FilterButton>
-                  <Filter
-                    size={14}
-                    className={agentFilterEnabled ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-3)]'}
+    <aside className="flex h-full w-[250px] shrink-0 flex-col border-foreground/[0.05] border-r bg-(--color-sidebar)">
+      <div className="flex shrink-0 items-start justify-between gap-2 px-3 pt-3.5 pb-1.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate font-semibold text-(--color-foreground) text-sm">
+                {t('settings.provider.title')}
+              </h2>
+              <Badge variant="outline" className="h-5 rounded-full px-2 py-0 text-xs">
+                {filteredProviders.length}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              disabled={dragging}
+              className="flex size-7 items-center justify-center rounded-3xs text-foreground/55 transition-colors hover:bg-accent/40 hover:text-foreground">
+              <Filter size={11} className={cn(agentFilterEnabled && 'text-(--color-primary)')} />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-40 p-1">
+            <MenuList>
+              <MenuItem
+                label={t('settings.provider.filter.all')}
+                className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                icon={
+                  <Check
+                    className={cn('size-4', !agentFilterEnabled && 'opacity-100', agentFilterEnabled && 'opacity-0')}
                   />
-                </FilterButton>
-              </Dropdown>
-            }
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.stopPropagation()
+                }
+                onClick={() => onAgentFilterEnabledChange(false)}
+              />
+              <MenuItem
+                label={t('settings.provider.filter.agent')}
+                className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                icon={
+                  <Check
+                    className={cn('size-4', agentFilterEnabled && 'opacity-100', !agentFilterEnabled && 'opacity-0')}
+                  />
+                }
+                onClick={() => onAgentFilterEnabledChange(true)}
+              />
+            </MenuList>
+          </PopoverContent>
+        </Popover>
+      </div>
+      <div className="px-3 pb-1.5">
+        <div className="flex items-center gap-2 rounded-3xs border border-border/30 bg-foreground/[0.03] px-3 py-2 shadow-none">
+          <Search size={14} className="shrink-0 text-foreground/50" />
+          <input
+            value={searchText}
+            placeholder={t('settings.provider.search')}
+            onChange={(event) => setSearchText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation()
                 setSearchText('')
               }
             }}
-            allowClear
             disabled={dragging}
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground/80 outline-none placeholder:text-foreground/40"
           />
-        </AddButtonWrapper>
-        <DraggableVirtualList
-          ref={listRef}
-          list={filteredProviders}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          estimateSize={useCallback(() => 40, [])}
-          itemKey={itemKey}
-          overscan={3}
-          style={{
-            height: `calc(100% - 2 * ${BUTTON_WRAPPER_HEIGHT}px)`
-          }}
-          scrollerStyle={{
-            padding: 8,
-            paddingRight: 5
-          }}
-          itemContainerStyle={{ paddingBottom: 5 }}>
-          {(provider) => (
-            <Dropdown menu={{ items: getDropdownMenus(provider) }} trigger={['contextMenu']}>
-              <ProviderListItem
-                key={provider.id}
-                className={provider.id === selectedProvider?.id ? 'active' : ''}
-                onClick={() => setSelectedProvider(provider)}>
-                <DragHandle>
-                  <GripVertical size={12} />
-                </DragHandle>
-                <ProviderAvatar
-                  style={{
-                    width: 24,
-                    height: 24
-                  }}
-                  provider={provider}
-                  customLogos={providerLogos}
-                />
-                <ProviderItemName className="text-nowrap">{getFancyProviderName(provider)}</ProviderItemName>
-                {provider.isEnabled && (
-                  <Tag color="green" style={{ marginLeft: 'auto', marginRight: 0, borderRadius: 16 }}>
-                    ON
-                  </Tag>
-                )}
-              </ProviderListItem>
-            </Dropdown>
-          )}
-        </DraggableVirtualList>
-        <AddButtonWrapper>
-          <Button
-            size="sm"
-            style={{ width: '100%', borderRadius: 'var(--list-item-border-radius)' }}
-            onClick={onAddProvider}
-            disabled={dragging}>
-            <PlusIcon size={16} />
-            {t('button.add')}
-          </Button>
-        </AddButtonWrapper>
-      </ProviderListContainer>
-      {selectedProvider && (
-        <ProviderSetting providerId={selectedProvider.id} key={selectedProvider.id} isOnboarding={isOnboarding} />
-      )}
-    </Container>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2 [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[2px]">
+        {filteredProviders.length > 0 ? (
+          <ReorderableList
+            items={providers}
+            visibleItems={filteredProviders}
+            getId={(provider) => provider.id}
+            onDragStateChange={handleDragStateChange}
+            onReorder={onReorder}
+            className="w-full"
+            gap={1}
+            restrictions={{ scrollableAncestor: true }}
+            renderItem={(provider, _index, state) => {
+              const duplicateProviderCount = providerCounts.get(provider.id) ?? 0
+              const showManagementActions = duplicateProviderCount > 1 || !isSystemProvider(provider)
+
+              return (
+                <Popover
+                  open={contextProviderId === provider.id}
+                  onOpenChange={(open) => setContextProviderId(open ? provider.id : null)}>
+                  <PopoverAnchor asChild>
+                    <div
+                      className="w-full"
+                      ref={(element) => setProviderItemRef(provider.id, element)}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        setContextProviderId(provider.id)
+                      }}>
+                      <ProviderListItem
+                        provider={{ ...provider, name: getFancyProviderName(provider) }}
+                        selected={provider.id === selectedProviderId}
+                        dragging={state.dragging}
+                        customLogos={providerLogos}
+                        onClick={() => onSelectProvider(provider.id)}
+                      />
+                    </div>
+                  </PopoverAnchor>
+                  <PopoverContent align="start" className="w-44 p-1">
+                    <MenuList>
+                      {showManagementActions && (
+                        <MenuItem
+                          label={t('common.edit')}
+                          className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                          icon={<Edit size={14} />}
+                          onClick={() => void onEditProvider(provider)}
+                        />
+                      )}
+                      <MenuItem
+                        label={t('settings.provider.notes.title')}
+                        className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                        icon={<UserPen size={14} />}
+                        onClick={() => ModelNotesPopup.show({ providerId: provider.id })}
+                      />
+                      {showManagementActions && (
+                        <MenuItem
+                          label={t('common.delete')}
+                          icon={<Trash2 size={14} />}
+                          onClick={() => void onDeleteProvider(provider)}
+                          className="rounded-3xs px-2 py-[5px] text-(--color-destructive) text-[11px] hover:bg-accent/40"
+                        />
+                      )}
+                    </MenuList>
+                  </PopoverContent>
+                </Popover>
+              )
+            }}
+          />
+        ) : (
+          <div className="flex h-full min-h-40 items-center justify-center px-3 text-center text-(--color-muted-foreground) text-sm">
+            {t('common.no_results')}
+          </div>
+        )}
+      </div>
+      <div className="shrink-0 border-foreground/[0.04] border-t px-2.5 py-2">
+        <button
+          type="button"
+          onClick={() => void onAddProvider()}
+          disabled={dragging}
+          className="flex w-full items-center justify-center gap-2 rounded-3xs border border-border/40 border-dashed bg-transparent py-2 text-[11px] text-muted-foreground/70 shadow-none transition-colors hover:bg-accent/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
+          <PlusIcon size={14} />
+          <span>{t('button.add')}</span>
+        </button>
+      </div>
+    </aside>
   )
 }
-
-const Container = styled.div`
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-`
-
-const ProviderListContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-width: calc(var(--settings-width) + 10px);
-  height: calc(100vh - var(--navbar-height));
-  padding-bottom: 5px;
-  border-right: 0.5px solid var(--color-border);
-`
-
-const ProviderListItem = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  padding: 5px 10px;
-  width: 100%;
-  border-radius: var(--list-item-border-radius);
-  font-size: 14px;
-  transition: all 0.2s ease-in-out;
-  border: 0.5px solid transparent;
-  user-select: none;
-  cursor: pointer;
-  &:hover {
-    background: var(--color-background-soft);
-  }
-  &.active {
-    background: var(--color-background-soft);
-    border: 0.5px solid var(--color-border);
-    font-weight: bold !important;
-  }
-`
-
-const DragHandle = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: -8px;
-  width: 12px;
-  color: var(--color-text-3);
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out;
-  cursor: grab;
-
-  ${ProviderListItem}:hover & {
-    opacity: 1;
-  }
-
-  &:active {
-    cursor: grabbing;
-  }
-`
-
-const ProviderItemName = styled.div`
-  margin-left: 10px;
-  font-weight: 500;
-`
-
-const AddButtonWrapper = styled.div`
-  display: flex;
-  height: ${BUTTON_WRAPPER_HEIGHT}px;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  padding: 10px 8px;
-`
-
-const FilterButton = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  cursor: pointer;
-`
-
-const CheckPlaceholder = styled.span`
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-`
-
-export default ProviderList

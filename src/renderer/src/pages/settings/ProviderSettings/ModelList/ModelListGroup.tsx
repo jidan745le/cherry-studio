@@ -6,7 +6,6 @@ import type { Model } from '@shared/data/types/model'
 import { Minus } from 'lucide-react'
 import React, { memo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import styled from 'styled-components'
 
 import { getModelGroupLabel } from './grouping'
 import ModelListItem from './ModelListItem'
@@ -17,7 +16,6 @@ interface ModelListGroupProps {
   groupName: string
   models: Model[]
   duplicateModelNames: Set<string>
-  /** 使用 Map 实现 O(1) 查找，替代原来的数组线性搜索 */
   modelStatusMap: Map<string, ModelWithStatus>
   defaultOpen: boolean
   disabled?: boolean
@@ -42,30 +40,29 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
   const groupLabel = getModelGroupLabel(groupName, t)
 
   const handleCollapseChange = useCallback((activeKeys: string[] | string) => {
-    const isNowExpanded = Array.isArray(activeKeys) ? activeKeys.length > 0 : !!activeKeys
-    if (isNowExpanded) {
-      // 延迟到 DOM 可见后测量
+    const isExpanded = Array.isArray(activeKeys) ? activeKeys.length > 0 : Boolean(activeKeys)
+    if (isExpanded) {
       requestAnimationFrame(() => listRef.current?.measure())
     }
   }, [])
 
   return (
-    <CustomCollapseWrapper>
+    <div className="group [&_.ant-collapse-content-box]:!p-0">
       <CustomCollapse
         defaultActiveKey={defaultOpen ? ['1'] : []}
         onChange={handleCollapseChange}
         label={
           <Flex className="items-center gap-[10px]">
-            <span style={{ fontWeight: 'bold' }}>{groupLabel}</span>
+            <span className="font-semibold text-(--color-foreground) text-sm">{groupLabel}</span>
           </Flex>
         }
         extra={
           <Tooltip content={t('settings.models.manage.remove_whole_group')}>
             <Button
               variant="ghost"
-              className="toolbar-item"
-              onClick={(e) => {
-                e.stopPropagation()
+              className="opacity-0 transition-opacity group-hover:opacity-100"
+              onClick={(event) => {
+                event.stopPropagation()
                 onRemoveGroup()
               }}
               disabled={disabled}>
@@ -75,13 +72,18 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
         }
         styles={{
           header: {
-            padding: '3px calc(6px + var(--scrollbar-width)) 3px 16px'
+            padding: '6px calc(6px + var(--scrollbar-width)) 6px 14px',
+            background: 'transparent'
           }
+        }}
+        style={{
+          border: 'none',
+          background: 'transparent'
         }}>
         <DynamicVirtualList
           ref={listRef}
           list={models}
-          estimateSize={useCallback(() => 52, [])} // 44px item + 8px padding
+          estimateSize={useCallback(() => 52, [])}
           overscan={5}
           scrollerStyle={{
             maxHeight: `${MAX_SCROLLER_HEIGHT}px`,
@@ -103,26 +105,8 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
           )}
         </DynamicVirtualList>
       </CustomCollapse>
-    </CustomCollapseWrapper>
+    </div>
   )
 }
-
-const CustomCollapseWrapper = styled.div`
-  .toolbar-item {
-    transform: translateZ(0);
-    will-change: opacity;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  &:hover .toolbar-item {
-    opacity: 1;
-  }
-
-  /* 移除 collapse 的 padding，转而在 scroller 内部调整 */
-  .ant-collapse-content-box {
-    padding: 0 !important;
-  }
-
-`
 
 export default memo(ModelListGroup)

@@ -21,6 +21,7 @@ interface Props<T> {
   onDragStart?: OnDragStartResponder
   onDragEnd?: OnDragEndResponder
   droppableProps?: Partial<DroppableProps>
+  disabled?: boolean
 }
 
 function DraggableList<T>({
@@ -33,7 +34,8 @@ function DraggableList<T>({
   droppableProps,
   onDragStart,
   onUpdate,
-  onDragEnd
+  onDragEnd,
+  disabled
 }: Props<T>) {
   const _onDragEnd = (result: DropResult, provided: ResponderProvided) => {
     onDragEnd?.(result, provided)
@@ -67,7 +69,11 @@ function DraggableList<T>({
               {list.map((item, index) => {
                 const draggableId = String(getId(item) ?? index)
                 return (
-                  <Draggable key={`draggable_${draggableId}`} draggableId={draggableId} index={index}>
+                  <Draggable
+                    key={`draggable_${draggableId}`}
+                    draggableId={draggableId}
+                    index={index}
+                    isDragDisabled={disabled}>
                     {(provided) => (
                       <div
                         ref={provided.innerRef}
