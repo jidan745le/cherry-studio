@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import '@cherrystudio/ui/styles/theme.css';
 @import './legacy-vars.css';
+@import './tailwind-default-scope.css';
 
 @source '../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}';
 @custom-variant dark (&:is(.dark *));
@@ -114,30 +115,6 @@
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
-  }
-}
-
-/*
- * Scoped reset: use Tailwind default theme values for `--radius-*` and base
- * `--spacing` under this subtree only (inherits to descendants). Values match
- * tailwindcss@4.1 default `theme.css` radius + spacing. Does not revert
- * semantic colors (`--color-background`, shadcn tokens, etc.).
- */
-@layer components {
-  .scope-tailwind-default-theme {
-    --spacing: 0.25rem;
-
-    --radius-4xs: 0.125rem;
-    --radius-3xs: 0.25rem;
-    --radius-2xs: 0.375rem;
-    --radius-xs: 0.125rem;
-    --radius-sm: 0.25rem;
-    --radius-md: 0.375rem;
-    --radius-lg: 0.5rem;
-    --radius-xl: 0.75rem;
-    --radius-2xl: 1rem;
-    --radius-3xl: 1.5rem;
-    --radius-round: 9999px;
   }
 }
 
