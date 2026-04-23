@@ -57,6 +57,12 @@ export interface UpdateProviderDto extends ProviderMutableFields {
   isEnabled?: boolean
 }
 
+export interface UpdateApiKeyDto {
+  key?: string
+  label?: string
+  isEnabled?: boolean
+}
+
 /**
  * Provider API Schema definitions
  */
@@ -172,6 +178,11 @@ export type ProviderSchemas = {
    * @example DELETE /providers/openai/api-keys/abc-123
    */
   '/providers/:providerId/api-keys/:keyId': {
+    PATCH: {
+      params: { providerId: string; keyId: string }
+      body: UpdateApiKeyDto
+      response: Provider
+    }
     DELETE: {
       params: { providerId: string; keyId: string }
       response: Provider

@@ -241,6 +241,17 @@ class ProviderService {
       return enabledKeys[0].key
     }
 
+    const strategy = row.providerSettings?.apiKeyScheduling?.strategy ?? 'round-robin'
+
+    // P0 only supports round-robin. Keep the branch explicit so UI/backend
+    // semantics stay aligned once additional strategies are introduced later.
+    if (strategy !== 'round-robin') {
+      logger.warn('Unsupported API key scheduling strategy, falling back to round-robin', {
+        providerId,
+        strategy
+      })
+    }
+
     // Round-robin using CacheService
     const cache = application.get('CacheService')
     const cacheKey = `provider:${providerId}:last_used_key_id`
@@ -257,6 +268,24 @@ class ProviderService {
     cache.set(cacheKey, nextKey.id)
 
     return nextKey.key
+  }
+
+  /**
+   * Get all API keys for a provider.
+   * Used by settings management UIs.
+   */
+  async getApiKeys(providerId: string): Promise<ApiKeyEntry[]> {
+    const [row] = await this.db
+      .select()
+      .from(userProviderTable)
+      .where(eq(userProviderTable.providerId, providerId))
+      .limit(1)
+
+    if (!row) {
+      throw DataApiErrorFactory.notFound('Provider', providerId)
+    }
+
+    return row.apiKeys ?? []
   }
 
   /**
@@ -333,6 +362,68 @@ class ProviderService {
       .returning()
 
     logger.info('Added API key to provider', { providerId })
+
+    return rowToRuntimeProvider(updated)
+  }
+
+  /**
+   * Update a single API key entry by key ID.
+   */
+  async updateApiKey(
+    providerId: string,
+    keyId: string,
+    updates: {
+      key?: string
+      label?: string
+      isEnabled?: boolean
+    }
+  ): Promise<Provider> {
+    const [row] = await this.db
+      .select()
+      .from(userProviderTable)
+      .where(eq(userProviderTable.providerId, providerId))
+      .limit(1)
+
+    if (!row) {
+      throw DataApiErrorFactory.notFound('Provider', providerId)
+    }
+
+    const existingKeys = row.apiKeys ?? []
+    const keyIndex = existingKeys.findIndex((entry) => entry.id === keyId)
+
+    if (keyIndex === -1) {
+      throw DataApiErrorFactory.notFound('API key', keyId)
+    }
+
+    const nextKeyValue = updates.key?.trim()
+    if (updates.key !== undefined && !nextKeyValue) {
+      throw DataApiErrorFactory.validation({ key: ['API key cannot be empty'] })
+    }
+
+    if (nextKeyValue && existingKeys.some((entry, index) => index !== keyIndex && entry.key === nextKeyValue)) {
+      throw DataApiErrorFactory.conflict('API key already exists', 'API key')
+    }
+
+    const updatedKeys = existingKeys.map((entry, index) => {
+      if (index !== keyIndex) {
+        return entry
+      }
+
+      return {
+        ...entry,
+        ...(updates.label !== undefined ? { label: updates.label || undefined } : {}),
+        ...(updates.isEnabled !== undefined ? { isEnabled: updates.isEnabled } : {}),
+        ...(nextKeyValue ? { key: nextKeyValue } : {})
+      }
+    })
+
+    const [updated] = await this.db
+      .update(userProviderTable)
+      .set({ apiKeys: updatedKeys })
+      .where(eq(userProviderTable.providerId, providerId))
+      .returning()
+
+    logger.info('Updated API key', { providerId, keyId, changes: Object.keys(updates) })
 
     return rowToRuntimeProvider(updated)
   }

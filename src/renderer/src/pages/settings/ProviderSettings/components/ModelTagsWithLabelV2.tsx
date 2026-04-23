@@ -93,7 +93,9 @@ const Container = styled.div`
   align-items: center;
   gap: 4px;
   flex-wrap: nowrap;
-  overflow-x: scroll;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   &::-webkit-scrollbar {
     display: none;
   }

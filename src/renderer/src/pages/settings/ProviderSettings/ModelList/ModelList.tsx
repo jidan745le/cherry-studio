@@ -5,6 +5,7 @@ import { useModelMutations, useModels } from '@renderer/hooks/useModels'
 import { useProvider, useProviderApiKeys } from '@renderer/hooks/useProviders'
 import { getProviderLabel } from '@renderer/i18n/label'
 import EditModelPopup from '@renderer/pages/settings/ProviderSettings/EditModelPopup/EditModelPopup'
+import { useProviderModelSync } from '@renderer/pages/settings/ProviderSettings/hooks/useProviderModelSync'
 import AddModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/AddModelPopup'
 import DownloadOVMSModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/DownloadOVMSModelPopup'
 import ManageModelsPopup from '@renderer/pages/settings/ProviderSettings/ModelList/ManageModelsPopup'
@@ -14,7 +15,7 @@ import { isNewApiProvider } from '@renderer/utils/provider.v2'
 import type { Model } from '@shared/data/types/model'
 import { parseUniqueModelId } from '@shared/data/types/model'
 import { isEmpty, sortBy, toPairs } from 'lodash'
-import { Download, HeartPulse, Plus, RefreshCw, Search, X } from 'lucide-react'
+import { Download, Eye, EyeOff, HeartPulse, Plus, Search, X } from 'lucide-react'
 import React, { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -83,17 +84,14 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
   const { provider } = useProvider(providerId)
   const { models } = useModels({ providerId })
   const { data: apiKeysData } = useProviderApiKeys(providerId)
-  const joinedApiKey = apiKeysData?.keys?.map((item) => item.key).join(',') ?? ''
-  const { deleteModel, updateModel } = useModelMutations()
+  const { syncProviderModels, isSyncingModels } = useProviderModelSync(providerId)
+  const joinedApiKey =
+    apiKeysData?.keys
+      ?.filter((item) => item.isEnabled)
+      .map((item) => item.key)
+      .join(',') ?? ''
+  const { updateModel } = useModelMutations()
   const duplicateModelNames = useMemo(() => getDuplicateProviderSettingModelNames(models), [models])
-
-  const removeModel = useCallback(
-    async (model: Model) => {
-      const { modelId } = parseUniqueModelId(model.id)
-      await deleteModel(model.providerId, modelId)
-    },
-    [deleteModel]
-  )
 
   const handleEditModel = useCallback(
     (model: Model) => provider && EditModelPopup.show({ provider, model }),
@@ -160,6 +158,12 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
     }
   }, [provider])
 
+  const onRefreshModels = useCallback(() => {
+    if (provider) {
+      void syncProviderModels(provider)
+    }
+  }, [provider, syncProviderModels])
+
   const onAddModel = useCallback(() => {
     if (!provider) {
       return
@@ -202,6 +206,13 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
     },
     [filteredModels, updateModel]
   )
+  const toggleModelEnabled = useCallback(
+    async (model: Model, enabled: boolean) => {
+      const { modelId } = parseUniqueModelId(model.id)
+      await updateModel(model.providerId, modelId, { isEnabled: enabled })
+    },
+    [updateModel]
+  )
 
   const isLoading = displayedModelSections === null
   const hasNoModels = models.length === 0
@@ -209,27 +220,32 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
   const modelCount = filteredModels.length
   const enabledGroups = displayedModelSections?.enabled ?? {}
   const disabledGroups = displayedModelSections?.disabled ?? {}
-  const isBusy = isHealthChecking || isBulkUpdating
+  const isBusy = isHealthChecking || isBulkUpdating || isSyncingModels
 
   return (
-    <section data-testid="provider-model-list" className="space-y-2">
-      <div className="flex flex-col gap-2">
-        <div className="mb-2.5 flex items-center justify-between">
+    <section data-testid="provider-model-list" className={modelListClasses.section}>
+      <div className={modelListClasses.headerBlock}>
+        <div className={modelListClasses.titleRow}>
           <div className="min-w-0">
-            <div className="flex items-baseline gap-2.5">
+            <div className={modelListClasses.titleWrap}>
               <h2 className={modelListClasses.sectionTitle}>{t('common.models')}</h2>
               <span className={modelListClasses.countMeta}>
                 {enabledModelCount}/{modelCount} {t('common.enabled')}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className={modelListClasses.titleActions}>
             <Button
               variant="ghost"
               size="sm"
-              className={modelListClasses.toolbarHeaderGhost}
+              className={cn(modelListClasses.toolbarHeaderGhost, 'gap-1')}
               disabled={!hasVisibleModels || isBusy}
               onClick={() => void updateVisibleModelsEnabledState(!allEnabled)}>
+              {allEnabled ? (
+                <EyeOff className={modelListClasses.toolbarHeaderIcon} />
+              ) : (
+                <Eye className={modelListClasses.toolbarHeaderIcon} />
+              )}
               {allEnabled ? t('settings.models.check.disabled') : t('settings.models.check.enabled')}
             </Button>
             <Button
@@ -247,12 +263,11 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
               className={cn(modelListClasses.toolbarHeaderGhost, 'gap-1')}
               disabled={isBusy}
               onClick={onManageModel}>
-              <RefreshCw className={modelListClasses.toolbarHeaderIcon} />
               {t('manage')}
             </Button>
           </div>
         </div>
-        <div className="mb-2 flex items-center gap-2">
+        <div className={modelListClasses.searchRow}>
           <div className={modelListClasses.searchWrap}>
             <Search className={modelListClasses.searchIcon} />
             <input
@@ -268,10 +283,10 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className={modelListClasses.searchActions}>
             <Button
               variant="outline"
-              onClick={onManageModel}
+              onClick={onRefreshModels}
               size="sm"
               className={cn(modelListClasses.fetchOutline, 'gap-1.5')}
               disabled={isBusy}>
@@ -329,11 +344,12 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
           <div className={modelListClasses.emptyState}>{t('common.no_results')}</div>
         ) : (
           <div className={modelListClasses.listScroller}>
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
               {!isEmpty(enabledGroups) && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className={modelListClasses.subsectionRow}>
                     <p className={modelListClasses.subsectionTitleEnabled}>{t('settings.models.check.enabled')}</p>
+                    <span className={modelListClasses.subsectionRule} />
                     <span className={modelListClasses.subsectionCountEnabled}>
                       {countModelsInGroups(enabledGroups)}
                     </span>
@@ -349,17 +365,17 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
                         defaultOpen={index <= 5}
                         disabled={isBusy}
                         onEditModel={handleEditModel}
-                        onRemoveModel={removeModel}
-                        onRemoveGroup={() => enabledGroups[group].forEach((model) => void removeModel(model))}
+                        onToggleModel={toggleModelEnabled}
                       />
                     ))}
                   </div>
                 </div>
               )}
               {!isEmpty(disabledGroups) && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div className={modelListClasses.subsectionRow}>
                     <p className={modelListClasses.subsectionTitleDisabled}>{t('settings.models.check.disabled')}</p>
+                    <span className={modelListClasses.subsectionRule} />
                     <span className={modelListClasses.subsectionCountDisabled}>{disabledModelCount}</span>
                   </div>
                   <div className="flex flex-col gap-3">
@@ -373,8 +389,7 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
                         defaultOpen={index <= 2}
                         disabled={isBusy}
                         onEditModel={handleEditModel}
-                        onRemoveModel={removeModel}
-                        onRemoveGroup={() => disabledGroups[group].forEach((model) => void removeModel(model))}
+                        onToggleModel={toggleModelEnabled}
                       />
                     ))}
                   </div>

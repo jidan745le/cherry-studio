@@ -67,7 +67,7 @@ export const CreateModelDtoSchema = z.object({
 })
 export type CreateModelDto = z.infer<typeof CreateModelDtoSchema>
 
-export const MODELS_BATCH_MAX_ITEMS = 100
+export const MODELS_BATCH_MAX_ITEMS = 500
 
 /**
  * `POST /models` intentionally accepts arrays only.

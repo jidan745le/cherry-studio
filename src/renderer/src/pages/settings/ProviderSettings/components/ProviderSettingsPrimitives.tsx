@@ -42,60 +42,111 @@ const modelListCategoryChipBase =
 
 /** Model list block; composes atomic tokens from `tailwind-default-scope.css` under `.provider-settings-default-scope`. */
 export const modelListClasses = {
+  section: 'space-y-[length:var(--space-stack-sm)]',
+  headerBlock: 'flex flex-col gap-[length:var(--space-stack-xs)]',
+  titleRow: 'flex items-center justify-between gap-3',
+  titleWrap: 'flex min-w-0 items-baseline gap-[length:var(--space-inline-md)]',
+  titleActions: 'flex flex-wrap items-center gap-[length:var(--space-inline-xs)]',
   /** 模型列表区块标题：同字号/行高/色，字重 `--font-weight-semibold`（600） */
   sectionTitle: cn(sectionHeadingBase, 'font-[weight:var(--font-weight-semibold)]'),
-  countMeta: 'text-[10px] leading-[var(--line-height-body-xs)] text-(--color-muted-foreground)',
+  countMeta:
+    'text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-(--color-muted-foreground) tabular-nums',
   toolbarGhost:
     'h-auto rounded-3xs px-2.5 py-[5px] text-[length:var(--font-size-caption)] leading-[length:var(--line-height-caption)] text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-hover-soft)] hover:text-foreground',
   /** 模型列表标题行 ghost：较 `toolbarGhost` 再收一档（padding + body-xs + 小图标） */
   toolbarHeaderGhost:
-    'h-auto min-h-0 rounded-3xs px-2 py-[3px] text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-hover-soft)] hover:text-foreground',
+    'h-auto min-h-0 rounded-[length:var(--radius-4xs)] px-[length:var(--padding-x-control-compact)] py-[length:var(--padding-y-control-compact)] text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground',
   toolbarIcon: 'size-[length:var(--icon-size-caption)] shrink-0',
-  toolbarHeaderIcon: 'size-[length:var(--font-size-body-xs)] shrink-0',
+  toolbarHeaderIcon: 'size-[length:var(--icon-size-body-xs)] shrink-0',
+  searchRow: 'flex items-center gap-2',
+  searchActions: 'flex shrink-0 items-center gap-2',
   searchWrap:
     'flex flex-1 items-center gap-1.5 rounded-lg border border-[color:var(--color-border-fg-hairline)] bg-[var(--color-surface-fg-sunken)] px-2.5 py-[5px]',
   searchIcon: 'size-[length:var(--icon-size-caption)] shrink-0 text-foreground/55',
   searchInput:
     'min-w-0 flex-1 border-none bg-transparent text-[length:var(--font-size-body-md)] text-foreground/80 outline-none placeholder:text-foreground/50 leading-[var(--line-height-body-md)]',
-  searchClear: 'text-foreground/45 transition-colors hover:text-foreground/65',
+  searchClear:
+    'flex h-[18px] w-[18px] items-center justify-center rounded-full text-foreground/45 transition-colors hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground/65',
   fetchOutline: cn(
     actionClasses.btnBase,
     actionClasses.btnNeutral,
-    'rounded-3xs border-border/40 px-3 py-[5px] hover:bg-[var(--color-surface-hover-soft)]'
+    'rounded-lg border-[color:var(--color-border-fg-muted)] px-3 py-[5px] text-foreground/75 hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground'
   ),
   addIconButton:
-    'size-8 rounded-3xs border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-hover-soft)] hover:text-foreground',
-  chipRow: 'mb-2.5 flex flex-wrap items-center gap-[5px]',
+    'size-8 rounded-lg border-[color:var(--color-border-fg-muted)] bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground',
+  chipRow: 'flex flex-wrap items-center gap-[5px]',
   chipActive: cn(
     modelListCategoryChipBase,
-    'border-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] bg-foreground/[0.1] text-foreground/85'
+    'border-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] bg-[var(--color-surface-fg-muted)] text-foreground/85'
   ),
   chipIdle: cn(
     modelListCategoryChipBase,
-    'border-[color:var(--color-border-fg-muted)] bg-transparent text-foreground/65 hover:border-[color:color-mix(in_srgb,var(--foreground)_20%,transparent)] hover:bg-[var(--color-surface-hover-soft)] hover:text-foreground/80'
+    'border-[color:var(--color-border-fg-muted)] bg-transparent text-foreground/65 hover:border-[color:color-mix(in_srgb,var(--foreground)_20%,transparent)] hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground/80'
   ),
   chipLabel: 'text-[length:var(--font-size-chip-label)] leading-[var(--line-height-caption)]',
   chipCount: 'text-[length:var(--font-size-chip-count)] leading-[var(--line-height-body-xs)] opacity-70 tabular-nums',
-  subsectionRow: 'flex items-center justify-between gap-3 px-1',
+  subsectionRow: 'flex items-center gap-2 px-3 py-[4px]',
+  subsectionRule: 'h-px flex-1 bg-foreground/[0.08]',
   subsectionTitleEnabled:
-    'font-medium text-[length:var(--font-size-caption)] leading-[length:var(--line-height-caption)] text-foreground/75',
+    'font-medium text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/75',
   subsectionCountEnabled:
-    'text-[length:var(--font-size-caption)] leading-[length:var(--line-height-caption)] text-foreground/60',
+    'text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/60 tabular-nums',
   subsectionTitleDisabled:
-    'font-medium text-[length:var(--font-size-caption)] leading-[length:var(--line-height-caption)] text-foreground/70',
+    'font-medium text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/70',
   subsectionCountDisabled:
-    'text-[length:var(--font-size-caption)] leading-[length:var(--line-height-caption)] text-foreground/55',
+    'text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/55 tabular-nums',
   emptyState:
     'flex min-h-40 items-center justify-center rounded-2xl border border-(--color-border) border-dashed bg-[var(--color-surface-fg-sunken)] px-4 text-center text-[length:var(--font-size-body-md)] leading-[var(--line-height-body-md)] text-(--color-muted-foreground)',
   listScroller:
     '-mx-1 max-h-[length:var(--max-height-scroll-sm)] overflow-y-auto [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[2px]',
+  groupShell: 'group [&_.ant-collapse-content-box]:!p-0',
+  groupHeaderLabel: 'flex min-w-0 flex-1 items-center gap-2 overflow-hidden',
   groupTitle:
-    'font-semibold text-[length:var(--font-size-body-md)] leading-[var(--line-height-body-md)] text-(--color-foreground)',
-  row: 'flex items-center gap-3 px-3 py-[10px] text-foreground leading-none',
+    'shrink-0 text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/78 font-[weight:var(--font-weight-medium)]',
+  groupHeaderRule: 'h-px flex-1 bg-foreground/[0.06]',
+  groupCount:
+    'shrink-0 text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/58 tabular-nums',
+  groupActionButton:
+    'h-6 min-h-0 rounded-md px-1.5 py-0 text-muted-foreground/65 opacity-0 shadow-none transition-all hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground group-hover:opacity-100',
+  row: 'group flex cursor-pointer items-start gap-3 rounded-xl px-3 py-[10px] text-foreground leading-none transition-colors hover:bg-[var(--color-surface-fg-subtle)]',
+  rowMain: 'min-w-0 flex-1 items-start gap-3',
+  rowAvatar: 'h-[26px] w-[26px] shrink-0 rounded-lg',
+  rowBody: 'min-w-0 max-w-full flex-1 overflow-hidden',
+  rowBadges: 'mt-1 flex min-h-[18px] min-w-0 items-center gap-1.5 overflow-hidden',
   rowMeta:
-    'mt-[3px] truncate text-[length:var(--font-size-caption)] leading-[length:var(--line-height-caption)] text-foreground/65',
+    'mt-[3px] block min-w-0 max-w-full truncate text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/65',
+  rowActions: 'shrink-0 items-center gap-1.5 self-center',
   rowIconButton:
-    'size-7 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-hover-soft)] hover:text-foreground'
+    'size-7 rounded-lg border border-[color:var(--color-border-fg-muted)] bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground'
+} as const
+
+export const apiKeyListClasses = {
+  shell: 'provider-settings-default-scope space-y-4 py-1',
+  card: 'rounded-xl border border-[color:var(--color-border-fg-muted)] bg-[var(--color-surface-fg-sunken)] px-4 py-3',
+  summaryRow: 'flex items-center justify-between gap-3',
+  summaryTitle:
+    'text-[length:var(--font-size-body-md)] leading-[var(--line-height-body-md)] text-foreground/85 font-[weight:var(--font-weight-medium)]',
+  summaryMeta:
+    'text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-(--color-muted-foreground) tabular-nums',
+  helperText: 'text-[length:var(--font-size-caption)] leading-[var(--line-height-caption)] text-foreground/60',
+  listWrap: 'overflow-hidden rounded-xl border border-[color:var(--color-border-fg-muted)] bg-background',
+  listScroller: 'max-h-[60vh] overflow-y-auto overflow-x-hidden',
+  keyRow: 'flex flex-col gap-2 border-b border-[color:var(--color-border-fg-hairline)] px-4 py-3 last:border-b-0',
+  keyRowHeader: 'flex items-start justify-between gap-3',
+  keyRowBody: 'flex items-center gap-2',
+  keyLabel:
+    'min-w-0 truncate text-[length:var(--font-size-caption)] leading-[var(--line-height-caption)] text-foreground/85 font-[weight:var(--font-weight-medium)]',
+  keyValue:
+    'min-w-0 flex-1 truncate font-mono text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/60',
+  keyInputRow: 'grid gap-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]',
+  input:
+    'h-8 rounded-lg border border-[color:var(--color-border-fg-muted)] bg-background px-3 text-[length:var(--font-size-body-md)] leading-[var(--line-height-body-md)] text-foreground/80 outline-none placeholder:text-foreground/35',
+  actionRow: 'flex items-center justify-between gap-3',
+  actionCluster: 'flex items-center gap-1',
+  iconButton:
+    'size-8 rounded-lg border border-[color:var(--color-border-fg-muted)] bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground',
+  addButton:
+    'h-auto rounded-lg border border-dashed border-[color:var(--color-border-fg-muted)] bg-transparent px-3 py-2 text-[length:var(--font-size-caption)] leading-[var(--line-height-caption)] text-foreground/65 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground/85'
 } as const
 
 export const fieldClasses = {

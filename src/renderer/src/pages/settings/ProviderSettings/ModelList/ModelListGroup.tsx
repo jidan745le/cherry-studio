@@ -1,9 +1,8 @@
-import { Button, Flex, Tooltip } from '@cherrystudio/ui'
+import { Flex } from '@cherrystudio/ui'
 import CustomCollapse from '@renderer/components/CustomCollapse'
 import { DynamicVirtualList, type DynamicVirtualListRef } from '@renderer/components/VirtualList'
 import type { ModelWithStatus } from '@renderer/types/healthCheck'
 import type { Model } from '@shared/data/types/model'
-import { Minus } from 'lucide-react'
 import React, { memo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -19,8 +18,7 @@ interface ModelListGroupProps {
   defaultOpen: boolean
   disabled?: boolean
   onEditModel: (model: Model) => void
-  onRemoveModel: (model: Model) => void
-  onRemoveGroup: () => void
+  onToggleModel: (model: Model, enabled: boolean) => Promise<void>
 }
 
 const ModelListGroup: React.FC<ModelListGroupProps> = ({
@@ -31,8 +29,7 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
   defaultOpen,
   disabled,
   onEditModel,
-  onRemoveModel,
-  onRemoveGroup
+  onToggleModel
 }) => {
   const { t } = useTranslation()
   const listRef = useRef<DynamicVirtualListRef>(null)
@@ -46,33 +43,22 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
   }, [])
 
   return (
-    <div className="group [&_.ant-collapse-content-box]:!p-0">
+    <div className={modelListClasses.groupShell}>
       <CustomCollapse
         defaultActiveKey={defaultOpen ? ['1'] : []}
         onChange={handleCollapseChange}
         label={
-          <Flex className="items-center gap-[10px]">
+          <Flex className={modelListClasses.groupHeaderLabel}>
             <span className={modelListClasses.groupTitle}>{groupLabel}</span>
+            <span className={modelListClasses.groupHeaderRule} />
+            <span className={modelListClasses.groupCount}>{models.length}</span>
           </Flex>
         }
-        extra={
-          <Tooltip content={t('settings.models.manage.remove_whole_group')}>
-            <Button
-              variant="ghost"
-              className="opacity-0 transition-opacity group-hover:opacity-100"
-              onClick={(event) => {
-                event.stopPropagation()
-                onRemoveGroup()
-              }}
-              disabled={disabled}>
-              <Minus size={14} />
-            </Button>
-          </Tooltip>
-        }
+        extra={null}
         styles={{
           header: {
             padding:
-              'var(--padding-y-control) calc(var(--padding-y-control) + var(--scrollbar-width)) var(--padding-y-control) var(--padding-x-list-group)',
+              'var(--space-stack-2xs) calc(var(--padding-x-list-group) - 2px) var(--space-stack-2xs) var(--padding-x-list-group)',
             background: 'transparent'
           }
         }}
@@ -87,11 +73,11 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
           overscan={5}
           scrollerStyle={{
             maxHeight: 'var(--max-height-scroll-sm)',
-            padding: '4px 6px 4px 12px',
+            padding: '2px 6px 2px 12px',
             scrollbarGutter: 'stable'
           }}
           itemContainerStyle={{
-            padding: '4px 0'
+            padding: '2px 0'
           }}>
           {(model) => (
             <ModelListItem
@@ -99,7 +85,7 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
               modelStatus={modelStatusMap.get(model.id)}
               showIdentifier={duplicateModelNames.has(model.name)}
               onEdit={onEditModel}
-              onRemove={onRemoveModel}
+              onToggleEnabled={onToggleModel}
               disabled={disabled}
             />
           )}

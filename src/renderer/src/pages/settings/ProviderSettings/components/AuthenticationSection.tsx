@@ -50,7 +50,7 @@ export default function AuthenticationSection({ viewModel }: AuthenticationSecti
               placeholder={t('settings.provider.api_key.label')}
               onChange={(event) => drafts.setLocalApiKey(event.target.value)}
               autoFocus={provider.isEnabled && !computed.providerApiKey}
-              disabled={provider.id === 'copilot'}
+              disabled={provider.id === 'copilot' || !computed.isApiKeyInlineEditable}
             />
             {provider.id !== 'copilot' && (
               <InputGroupAddon align="inline-end">

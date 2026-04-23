@@ -1,5 +1,4 @@
 import { Button, Flex, RowFlex, Tooltip } from '@cherrystudio/ui'
-import { dataApiService } from '@data/DataApiService'
 import { loggerService } from '@logger'
 import { LoadingIcon } from '@renderer/components/Icons'
 import { TopView } from '@renderer/components/TopView'
@@ -17,20 +16,9 @@ import { useModelMutations, useModels } from '@renderer/hooks/useModels'
 import { useProvider, useProviderRegistryModels } from '@renderer/hooks/useProviders'
 import NewApiAddModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/NewApiAddModelPopup'
 import NewApiBatchAddModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/NewApiBatchAddModelPopup'
-import { fetchModels } from '@renderer/services/ApiService'
-import type { Model as LegacyModel, ModelCapability as LegacyModelCapability } from '@renderer/types'
 import { getFancyProviderName, isNewApiProvider } from '@renderer/utils/provider.v2'
-import { toV1ProviderShim } from '@renderer/utils/v1ProviderShim'
-import type { CreateModelDto } from '@shared/data/api/schemas/models'
-import {
-  createUniqueModelId,
-  ENDPOINT_TYPE,
-  type EndpointType as RuntimeEndpointType,
-  type Model,
-  MODEL_CAPABILITY,
-  type ModelCapability as RuntimeModelCapability,
-  parseUniqueModelId
-} from '@shared/data/types/model'
+import type { Model } from '@shared/data/types/model'
+import { parseUniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import { Empty, Modal, Spin, Tabs } from 'antd'
 import Input from 'antd/es/input/Input'
@@ -43,70 +31,10 @@ import styled from 'styled-components'
 
 import { normalizeModelGroupName } from './grouping'
 import ManageModelsList from './ManageModelsList'
+import { fetchResolvedProviderModels, toCreateModelDto } from './modelSync'
 import { filterProviderSettingModelsByKeywords, isValidNewApiModel } from './utils'
 
 const logger = loggerService.withContext('ManageModelsPopup')
-
-const LEGACY_CAPABILITY_TO_V2: Record<LegacyModelCapability['type'], RuntimeModelCapability | undefined> = {
-  text: undefined,
-  vision: MODEL_CAPABILITY.IMAGE_RECOGNITION,
-  embedding: MODEL_CAPABILITY.EMBEDDING,
-  reasoning: MODEL_CAPABILITY.REASONING,
-  function_calling: MODEL_CAPABILITY.FUNCTION_CALL,
-  web_search: MODEL_CAPABILITY.WEB_SEARCH,
-  rerank: MODEL_CAPABILITY.RERANK
-}
-
-const LEGACY_ENDPOINT_TO_V2: Record<string, RuntimeEndpointType> = {
-  openai: ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS,
-  'openai-response': ENDPOINT_TYPE.OPENAI_RESPONSES,
-  anthropic: ENDPOINT_TYPE.ANTHROPIC_MESSAGES,
-  gemini: ENDPOINT_TYPE.GOOGLE_GENERATE_CONTENT,
-  'image-generation': ENDPOINT_TYPE.OPENAI_IMAGE_GENERATION,
-  'jina-rerank': ENDPOINT_TYPE.JINA_RERANK
-}
-
-function toCreateModelDto(providerId: string, model: Model, endpointTypes?: RuntimeEndpointType[]): CreateModelDto {
-  const modelId = model.apiModelId ?? parseUniqueModelId(model.id).modelId
-
-  return {
-    providerId,
-    modelId,
-    name: model.name,
-    group: model.group,
-    ...(endpointTypes ? { endpointTypes } : {})
-  }
-}
-
-function normalizeFetchedModel(providerId: string, model: LegacyModel): Model {
-  const capabilities =
-    model.capabilities
-      ?.map((capability) => LEGACY_CAPABILITY_TO_V2[capability.type])
-      .filter((capability): capability is RuntimeModelCapability => capability !== undefined) ?? []
-
-  const endpointTypes = [
-    ...(model.supported_endpoint_types
-      ?.map((endpointType) => LEGACY_ENDPOINT_TO_V2[endpointType])
-      .filter((endpointType): endpointType is RuntimeEndpointType => endpointType !== undefined) ?? []),
-    ...(model.endpoint_type && LEGACY_ENDPOINT_TO_V2[model.endpoint_type]
-      ? [LEGACY_ENDPOINT_TO_V2[model.endpoint_type]]
-      : [])
-  ]
-
-  return {
-    id: createUniqueModelId(providerId, model.id),
-    providerId,
-    apiModelId: model.id,
-    name: model.name,
-    description: model.description,
-    group: model.group,
-    capabilities,
-    endpointTypes: endpointTypes.length > 0 ? endpointTypes : undefined,
-    supportsStreaming: model.supported_text_delta ?? true,
-    isEnabled: true,
-    isHidden: false
-  }
-}
 
 interface ShowParams {
   providerId: string
@@ -274,90 +202,7 @@ const PopupContainer: React.FC<Props> = ({ providerId, resolve }) => {
     async (prov: Provider) => {
       setLoadingModels(true)
       try {
-        let apiKey = ''
-        try {
-          const keyData = await dataApiService.get(`/providers/${providerId}/rotated-key` as const)
-          apiKey = (keyData as any)?.apiKey ?? ''
-        } catch {
-          // Provider may have no keys configured
-        }
-        const v1Provider = toV1ProviderShim(prov, { apiKey })
-        const fetched = await fetchModels(v1Provider)
-        const filteredModels = fetched.filter((model) => !isEmpty(model.name))
-        try {
-          const resolved = await dataApiService.post(`/providers/${providerId}/registry-models` as const, {
-            body: {
-              models: filteredModels.map((m) => ({
-                modelId: m.id,
-                name: m.name,
-                group: m.group,
-                description: m.description
-              }))
-            }
-          })
-          // ── Enrich: fetched models as primary, registry as supplement ──
-          //
-          // The fetched list from the provider's API is the source of truth for
-          // model identity (ID, name, group, endpointTypes, count). The registry
-          // POST (`/registry-models`) only supplements catalog metadata such as
-          // capabilities, pricing, contextWindow, description, etc.
-          //
-          // We iterate over fetched models (not resolved), convert each to v2 via
-          // normalizeFetchedModel, then overlay any richer fields the registry
-          // provided. This guarantees no models are lost to registry normalization
-          // (e.g. "agent/deepseek-v3.2" and "agent/deepseek-v3.2(free)" both
-          // resolving to the same preset "deepseek-v3-2").
-          //
-          // Registry lookup: the registry normalizes IDs during resolution
-          // (e.g. "agent/deepseek-v3.2" → "deepseek-v3-2"), so we index resolved
-          // models under their apiModelId for O(1) lookup from the fetched side.
-          const resolvedMap = new Map<string, Model>()
-          for (const model of resolved as Model[]) {
-            const key = model.apiModelId ?? parseUniqueModelId(model.id).modelId
-            if (!resolvedMap.has(key)) {
-              resolvedMap.set(key, model)
-            }
-          }
-
-          // Fields to supplement from registry when available
-          const REGISTRY_FIELDS = [
-            'capabilities',
-            'inputModalities',
-            'outputModalities',
-            'contextWindow',
-            'maxOutputTokens',
-            'maxInputTokens',
-            'reasoning',
-            'pricing',
-            'description',
-            'family',
-            'ownedBy'
-          ] as const
-
-          const enriched = filteredModels.map((fetched) => {
-            // Start from the fetched model converted to v2 (preserves ID, group, endpointTypes)
-            const base = normalizeFetchedModel(providerId, fetched)
-
-            // Try to find a matching registry model by normalized ID variants
-            const bare = fetched.id.includes('/') ? fetched.id.substring(fetched.id.lastIndexOf('/') + 1) : fetched.id
-            const dashed = bare.replace(/\./g, '-')
-            const registry = resolvedMap.get(fetched.id) ?? resolvedMap.get(bare) ?? resolvedMap.get(dashed)
-            if (!registry) return base
-
-            // Overlay registry catalog fields onto the fetched base
-            const merged = { ...base }
-            for (const field of REGISTRY_FIELDS) {
-              const val = registry[field]
-              if (val !== undefined && val !== null && !(Array.isArray(val) && val.length === 0)) {
-                ;(merged as Record<string, unknown>)[field] = val
-              }
-            }
-            return merged
-          })
-          setListModels(enriched)
-        } catch {
-          setListModels(filteredModels.map((model) => normalizeFetchedModel(providerId, model)))
-        }
+        setListModels(await fetchResolvedProviderModels(providerId, prov))
       } catch (error) {
         logger.error(`Failed to load models for provider ${getFancyProviderName(prov)}`, error as Error)
       } finally {
@@ -489,7 +334,7 @@ const PopupContainer: React.FC<Props> = ({ providerId, resolve }) => {
       </SearchContainer>
       <Spin
         spinning={isLoading}
-        indicator={<LoadingIcon color="var(--color-text-2)" style={{ opacity: loadingModels ? 1 : 0 }} />}>
+        indicator={<LoadingIcon color="var(--color-muted-foreground)" style={{ opacity: loadingModels ? 1 : 0 }} />}>
         <ListContainer>
           {loadingModels || isEmpty(list) ? (
             <Empty
@@ -543,7 +388,7 @@ const ListContainer = styled.div`
 `
 
 const ModelHeaderTitle = styled.div`
-  color: var(--color-text);
+  color: var(--color-foreground);
   font-size: 18px;
   font-weight: 600;
   margin-right: 10px;

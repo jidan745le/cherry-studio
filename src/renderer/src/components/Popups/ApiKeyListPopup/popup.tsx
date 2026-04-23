@@ -58,7 +58,7 @@ const PopupContainer: React.FC<Props> = ({ providerId, title, resolve, showHealt
       centered
       width={600}
       footer={null}>
-      {ListComponent}
+      <div className="provider-settings-default-scope">{ListComponent}</div>
     </Modal>
   )
 }

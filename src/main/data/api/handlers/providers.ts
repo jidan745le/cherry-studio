@@ -15,7 +15,7 @@ import { providerService } from '@data/services/ProviderService'
 import { DataApiErrorFactory } from '@shared/data/api'
 import type { ApiHandler, ApiMethods } from '@shared/data/api/apiTypes'
 import { OrderBatchRequestSchema, OrderRequestSchema } from '@shared/data/api/schemas/_endpointHelpers'
-import type { CreateProviderDto, UpdateProviderDto } from '@shared/data/api/schemas/providers'
+import type { CreateProviderDto, UpdateApiKeyDto, UpdateProviderDto } from '@shared/data/api/schemas/providers'
 import type { ProviderSchemas } from '@shared/data/api/schemas/providers'
 import * as z from 'zod'
 
@@ -74,7 +74,7 @@ export const providerHandlers: {
 
   '/providers/:providerId/api-keys': {
     GET: async ({ params }) => {
-      const keys = await providerService.getEnabledApiKeys(params.providerId)
+      const keys = await providerService.getApiKeys(params.providerId)
       return { keys }
     },
 
@@ -108,6 +108,20 @@ export const providerHandlers: {
   },
 
   '/providers/:providerId/api-keys/:keyId': {
+    PATCH: async ({ params, body }) => {
+      const UpdateApiKeySchema = z.object({
+        key: z.string().min(1).optional(),
+        label: z.string().optional(),
+        isEnabled: z.boolean().optional()
+      })
+
+      const parsed = UpdateApiKeySchema.safeParse(body)
+      if (!parsed.success) {
+        throw DataApiErrorFactory.validation({ body: [parsed.error.issues[0]?.message ?? 'Invalid input'] })
+      }
+
+      return await providerService.updateApiKey(params.providerId, params.keyId, parsed.data as UpdateApiKeyDto)
+    },
     DELETE: async ({ params }) => {
       return providerService.deleteApiKey(params.providerId, params.keyId)
     }

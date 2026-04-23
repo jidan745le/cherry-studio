@@ -36,11 +36,12 @@ import type { Model } from '@shared/data/types/model'
 import { ENDPOINT_TYPE } from '@shared/data/types/model'
 import type { ApiKeyEntry, Provider } from '@shared/data/types/provider'
 import { debounce, isEmpty } from 'lodash'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { providerCheckApiAdapter } from '../adapters/providerCheckApiAdapter'
 import { applyProviderApiKeySideEffects } from '../adapters/providerSettingsSideEffects'
+import { useProviderModelSync } from './useProviderModelSync'
 
 const ANTHROPIC_COMPATIBLE_PROVIDER_IDS = [
   SystemProviderIds.deepseek,
@@ -99,6 +100,7 @@ export interface UseProviderSettingResult {
     isApiKeyConnectable: boolean
     isApiHostResettable: boolean
     isApiKeyFieldVisible: boolean
+    isApiKeyInlineEditable: boolean
     isConnectionFieldVisible: boolean
     canConfigureAnthropicHost: boolean
     hostSelectorOptions: Array<{ value: HostField; label: string }>
@@ -137,6 +139,7 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   const { move } = useReorder('/providers')
   const { models } = useModels({ providerId })
   const { data: apiKeysData } = useProviderApiKeys(providerId)
+  const { syncProviderModels, isSyncingModels } = useProviderModelSync(providerId)
   const { setTimeoutTimer } = useTimer()
   const { t, i18n } = useTranslation()
   const { theme } = useTheme()
@@ -153,7 +156,11 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   const providerApiHost = provider?.endpointConfigs?.[primaryEndpoint]?.baseUrl ?? ''
   const providerAnthropicHost = provider?.endpointConfigs?.[ENDPOINT_TYPE.ANTHROPIC_MESSAGES]?.baseUrl ?? ''
   const providerApiVersion = provider?.settings?.apiVersion ?? ''
-  const providerApiKey = apiKeysData?.keys?.map((item) => item.key).join(',') ?? ''
+  const providerApiKey =
+    apiKeysData?.keys
+      ?.filter((item) => item.isEnabled)
+      .map((item) => item.key)
+      .join(',') ?? ''
 
   const [apiHost, setApiHost] = useState(providerApiHost)
   const [anthropicApiHost, setAnthropicApiHost] = useState(providerAnthropicHost)
@@ -165,6 +172,7 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
     status: HealthStatus.NOT_CHECKED,
     checking: false
   })
+  const initialModelSyncSignatureRef = useRef<string | null>(null)
 
   const isAzureOpenAI = provider ? isAzureOpenAIProvider(provider) : false
   const isDmxapi = provider?.id === 'dmxapi'
@@ -180,6 +188,54 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   const isApiKeyFieldVisible = !hideApiInput && !isAnthropicOAuth && !hideApiKeyInput
   const isConnectionFieldVisible = !hideApiInput && !isAnthropicOAuth && !isDmxapi
   const normalizedLocalApiKey = useMemo(() => formatApiKeys(localApiKey), [localApiKey])
+  const hasManagedApiKeys = useMemo(
+    () => (apiKeysData?.keys?.length ?? 0) > 1 || (apiKeysData?.keys ?? []).some((key) => !key.isEnabled),
+    [apiKeysData?.keys]
+  )
+  const requiresApiKeyForModelSync = useMemo(() => {
+    if (!provider) {
+      return true
+    }
+
+    return !(
+      provider.id === 'ollama' ||
+      provider.id === 'lmstudio' ||
+      provider.id === 'copilot' ||
+      provider.authType === 'iam-gcp' ||
+      provider.authType === 'iam-aws'
+    )
+  }, [provider])
+  const canSyncModelsAutomatically = useMemo(() => {
+    if (!provider) {
+      return false
+    }
+
+    const primaryBaseUrl = provider.endpointConfigs?.[primaryEndpoint]?.baseUrl?.trim() ?? ''
+    const hasApiKeys = (apiKeysData?.keys?.length ?? 0) > 0
+
+    return (isVertexProvider(provider) || primaryBaseUrl.length > 0) && (!requiresApiKeyForModelSync || hasApiKeys)
+  }, [apiKeysData?.keys?.length, primaryEndpoint, provider, requiresApiKeyForModelSync])
+  const initialModelSyncSignature = useMemo(() => {
+    if (!provider) {
+      return null
+    }
+
+    const primaryBaseUrl = provider.endpointConfigs?.[primaryEndpoint]?.baseUrl ?? ''
+    const anthropicBaseUrl = provider.endpointConfigs?.[ENDPOINT_TYPE.ANTHROPIC_MESSAGES]?.baseUrl ?? ''
+    const keyFingerprint = (apiKeysData?.keys ?? [])
+      .filter((key) => key.isEnabled)
+      .map((key) => key.key)
+      .join(',')
+
+    return [
+      provider.id,
+      provider.authType,
+      provider.defaultChatEndpoint ?? '',
+      primaryBaseUrl,
+      anthropicBaseUrl,
+      keyFingerprint
+    ].join('|')
+  }, [apiKeysData?.keys, primaryEndpoint, provider])
 
   const updateLocalApiKey = useCallback((value: string) => {
     setIsApiKeyDirty(true)
@@ -223,12 +279,16 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   }, [isApiKeyDirty, normalizedLocalApiKey, providerApiKey])
 
   useEffect(() => {
+    if (hasManagedApiKeys) {
+      return
+    }
+
     if (provider && localApiKey !== providerApiKey) {
       void debouncedUpdateApiKey(localApiKey, provider)
     }
 
     return () => debouncedUpdateApiKey.cancel()
-  }, [debouncedUpdateApiKey, localApiKey, provider, providerApiKey])
+  }, [debouncedUpdateApiKey, hasManagedApiKeys, localApiKey, provider, providerApiKey])
 
   useEffect(() => {
     if (!provider || provider.id === 'copilot') {
@@ -236,6 +296,32 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
     }
     setApiHost(providerApiHost)
   }, [provider, providerApiHost])
+
+  useEffect(() => {
+    if (
+      !provider ||
+      models.length > 0 ||
+      !canSyncModelsAutomatically ||
+      !initialModelSyncSignature ||
+      isSyncingModels
+    ) {
+      return
+    }
+
+    if (initialModelSyncSignatureRef.current === initialModelSyncSignature) {
+      return
+    }
+
+    initialModelSyncSignatureRef.current = initialModelSyncSignature
+    void syncProviderModels(provider)
+  }, [
+    canSyncModelsAutomatically,
+    initialModelSyncSignature,
+    isSyncingModels,
+    models.length,
+    provider,
+    syncProviderModels
+  ])
 
   useEffect(() => {
     setAnthropicApiHost(providerAnthropicHost)
@@ -288,7 +374,7 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
       return
     }
 
-    if (localApiKey !== providerApiKey) {
+    if (!hasManagedApiKeys && localApiKey !== providerApiKey) {
       const apiKeys = formatApiKeys(localApiKey)
         .split(',')
         .filter(Boolean)
@@ -301,7 +387,7 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
       title: `${fancyProviderName} ${t('settings.provider.api.key.list.title')}`,
       providerType: 'llm'
     })
-  }, [fancyProviderName, localApiKey, provider, providerApiKey, t, updateApiKeys])
+  }, [fancyProviderName, hasManagedApiKeys, localApiKey, provider, providerApiKey, t, updateApiKeys])
 
   const checkApiAction = useCallback(async () => {
     if (!provider) {
@@ -412,9 +498,8 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
     }
 
     if (isVertexProvider(provider) || apiHost.trim()) {
-      if (isNewApiProvider(provider)) {
-        void patchProvider({
-          endpointConfigs: {
+      const nextEndpointConfigs = isNewApiProvider(provider)
+        ? {
             ...provider.endpointConfigs,
             [primaryEndpoint]: { ...provider.endpointConfigs?.[primaryEndpoint], baseUrl: apiHost },
             [ENDPOINT_TYPE.ANTHROPIC_MESSAGES]: {
@@ -422,22 +507,29 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
               baseUrl: apiHost
             }
           }
-        })
+        : {
+            ...provider.endpointConfigs,
+            [primaryEndpoint]: { ...provider.endpointConfigs?.[primaryEndpoint], baseUrl: apiHost }
+          }
+
+      if (isNewApiProvider(provider)) {
+        void (async () => {
+          await patchProvider({ endpointConfigs: nextEndpointConfigs })
+          await syncProviderModels({ ...provider, endpointConfigs: nextEndpointConfigs })
+        })()
         setAnthropicApiHost(apiHost)
         return
       }
 
-      void patchProvider({
-        endpointConfigs: {
-          ...provider.endpointConfigs,
-          [primaryEndpoint]: { ...provider.endpointConfigs?.[primaryEndpoint], baseUrl: apiHost }
-        }
-      })
+      void (async () => {
+        await patchProvider({ endpointConfigs: nextEndpointConfigs })
+        await syncProviderModels({ ...provider, endpointConfigs: nextEndpointConfigs })
+      })()
       return
     }
 
     setApiHost(providerApiHost)
-  }, [apiHost, patchProvider, primaryEndpoint, provider, providerApiHost, t])
+  }, [apiHost, patchProvider, primaryEndpoint, provider, providerApiHost, syncProviderModels, t])
 
   const commitAnthropicApiHost = useCallback(() => {
     if (!provider) {
@@ -446,24 +538,29 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
 
     const trimmedHost = anthropicApiHost.trim()
     if (trimmedHost) {
-      void patchProvider({
-        endpointConfigs: {
-          ...provider.endpointConfigs,
-          [ENDPOINT_TYPE.ANTHROPIC_MESSAGES]: {
-            ...provider.endpointConfigs?.[ENDPOINT_TYPE.ANTHROPIC_MESSAGES],
-            baseUrl: trimmedHost
-          }
+      const nextEndpointConfigs = {
+        ...provider.endpointConfigs,
+        [ENDPOINT_TYPE.ANTHROPIC_MESSAGES]: {
+          ...provider.endpointConfigs?.[ENDPOINT_TYPE.ANTHROPIC_MESSAGES],
+          baseUrl: trimmedHost
         }
-      })
+      }
+      void (async () => {
+        await patchProvider({ endpointConfigs: nextEndpointConfigs })
+        await syncProviderModels({ ...provider, endpointConfigs: nextEndpointConfigs })
+      })()
       setAnthropicApiHost(trimmedHost)
       return
     }
 
     const nextConfigs = { ...provider.endpointConfigs }
     delete nextConfigs[ENDPOINT_TYPE.ANTHROPIC_MESSAGES]
-    void patchProvider({ endpointConfigs: nextConfigs })
+    void (async () => {
+      await patchProvider({ endpointConfigs: nextConfigs })
+      await syncProviderModels({ ...provider, endpointConfigs: nextConfigs })
+    })()
     setAnthropicApiHost('')
-  }, [anthropicApiHost, patchProvider, provider])
+  }, [anthropicApiHost, patchProvider, provider, syncProviderModels])
 
   const commitApiVersion = useCallback(() => {
     if (!provider) {
@@ -483,17 +580,21 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
       return
     }
 
-    setApiHost(providerConfig?.api?.url ?? '')
-    void patchProvider({
-      endpointConfigs: {
-        ...provider.endpointConfigs,
-        [primaryEndpoint]: {
-          ...provider.endpointConfigs?.[primaryEndpoint],
-          baseUrl: providerConfig?.api?.url
-        }
+    const nextBaseUrl = providerConfig?.api?.url ?? ''
+    const nextEndpointConfigs = {
+      ...provider.endpointConfigs,
+      [primaryEndpoint]: {
+        ...provider.endpointConfigs?.[primaryEndpoint],
+        baseUrl: nextBaseUrl
       }
-    })
-  }, [patchProvider, primaryEndpoint, provider, providerConfig?.api?.url])
+    }
+
+    setApiHost(nextBaseUrl)
+    void (async () => {
+      await patchProvider({ endpointConfigs: nextEndpointConfigs })
+      await syncProviderModels({ ...provider, endpointConfigs: nextEndpointConfigs })
+    })()
+  }, [patchProvider, primaryEndpoint, provider, providerConfig?.api?.url, syncProviderModels])
 
   const hostPreview = useMemo(() => {
     if (!provider) {
@@ -587,6 +688,7 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
       isApiKeyConnectable,
       isApiHostResettable,
       isApiKeyFieldVisible,
+      isApiKeyInlineEditable: !hasManagedApiKeys,
       isConnectionFieldVisible,
       canConfigureAnthropicHost,
       hostSelectorOptions,

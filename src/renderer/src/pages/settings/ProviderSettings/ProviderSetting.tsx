@@ -2,7 +2,7 @@ import { Button } from '@cherrystudio/ui'
 import ApiOptionsSettingsPopup from '@renderer/pages/settings/ProviderSettings/ApiOptionsSettings/ApiOptionsSettingsPopup'
 import CustomHeaderPopup from '@renderer/pages/settings/ProviderSettings/CustomHeaderPopup'
 import { cn } from '@renderer/utils'
-import { Activity, KeyRound, Plus } from 'lucide-react'
+import { Activity, KeyRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import AuthenticationSection from './components/AuthenticationSection'
@@ -51,7 +51,7 @@ export default function ProviderSetting({ providerId, isOnboarding = false }: Pr
           </div>
           <section
             data-testid="provider-endpoint-tabs"
-            className="flex shrink-0 items-center justify-between gap-0.5 border-foreground/[0.05] border-b px-5">
+            className="flex shrink-0 items-center gap-0.5 border-foreground/[0.05] border-b px-5">
             <div className="flex min-w-0 flex-wrap items-center gap-0.5">
               {computed.hostSelectorOptions.map((option) => (
                 <button
@@ -69,16 +69,6 @@ export default function ProviderSetting({ providerId, isOnboarding = false }: Pr
                   )}
                 </button>
               ))}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled
-                className="ml-auto h-auto gap-1 px-2 py-[7px] text-(--color-primary)/70 text-[13px] shadow-none hover:text-(--color-primary)">
-                <Plus size={10} />
-                {t('button.add')}
-              </Button>
             </div>
           </section>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[3px]">

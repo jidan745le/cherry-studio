@@ -83,6 +83,14 @@ export type ApiKeyEntry = z.infer<typeof ApiKeyEntrySchema>
 export const RuntimeApiKeySchema = ApiKeyEntrySchema.omit({ key: true })
 export type RuntimeApiKey = z.infer<typeof RuntimeApiKeySchema>
 
+export const ApiKeySchedulingStrategySchema = z.enum(['round-robin'])
+export type ApiKeySchedulingStrategy = z.infer<typeof ApiKeySchedulingStrategySchema>
+
+export const ApiKeySchedulingSchema = z.object({
+  strategy: ApiKeySchedulingStrategySchema.default('round-robin')
+})
+export type ApiKeyScheduling = z.infer<typeof ApiKeySchedulingSchema>
+
 export const AuthTypeSchema = z.enum(['api-key', 'oauth', 'iam-aws', 'iam-gcp', 'iam-azure'])
 export type AuthType = z.infer<typeof AuthTypeSchema>
 
@@ -178,6 +186,9 @@ export const ProviderSettingsSchema = z.object({
   // User notes
   notes: z.string().optional(),
 
+  // API key scheduling
+  apiKeyScheduling: ApiKeySchedulingSchema.optional(),
+
   // GitHub Copilot auth state (stored here because v2 Provider has no isAuthed column)
   isAuthed: z.boolean().optional(),
   oauthUsername: z.string().optional(),
@@ -260,4 +271,8 @@ export const DEFAULT_API_FEATURES: RuntimeApiFeatures = {
   enableThinking: true
 }
 
-export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {}
+export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
+  apiKeyScheduling: {
+    strategy: 'round-robin'
+  }
+}

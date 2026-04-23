@@ -33,6 +33,13 @@ vi.mock('@renderer/hooks/useModels', () => ({
   })
 }))
 
+vi.mock('../useProviderModelSync', () => ({
+  useProviderModelSync: () => ({
+    syncProviderModels: vi.fn().mockResolvedValue([]),
+    isSyncingModels: false
+  })
+}))
+
 vi.mock('@renderer/hooks/useProviders', () => ({
   useProvider: () => ({
     provider: {

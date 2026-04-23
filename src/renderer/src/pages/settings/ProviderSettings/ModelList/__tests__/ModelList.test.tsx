@@ -8,6 +8,7 @@ const addModelShowMock = vi.fn()
 const newApiAddModelShowMock = vi.fn()
 const downloadModelShowMock = vi.fn()
 const updateModelMock = vi.fn()
+const syncProviderModelsMock = vi.fn()
 
 const useProviderMock = vi.fn()
 const useModelsMock = vi.fn()
@@ -66,6 +67,13 @@ vi.mock('../DownloadOVMSModelPopup', () => ({
   default: { show: (...args: any[]) => downloadModelShowMock(...args) }
 }))
 
+vi.mock('../../hooks/useProviderModelSync', () => ({
+  useProviderModelSync: () => ({
+    syncProviderModels: (...args: any[]) => syncProviderModelsMock(...args),
+    isSyncingModels: false
+  })
+}))
+
 vi.mock('../ModelListGroup', () => ({
   default: ({ groupName, models }: any) => (
     <div data-testid="model-group">
@@ -81,6 +89,8 @@ describe('ModelList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     updateModelMock.mockReset()
+    syncProviderModelsMock.mockReset()
+    syncProviderModelsMock.mockResolvedValue([])
     useProviderMock.mockImplementation((providerId: string) => ({
       provider: { id: providerId, name: providerId }
     }))
@@ -121,11 +131,14 @@ describe('ModelList', () => {
     expect(screen.getByText('Beta')).toBeInTheDocument()
   })
 
-  it('opens manage and add actions for a regular provider', () => {
+  it('opens manage, refresh and add actions for a regular provider', () => {
     render(<ModelList providerId="openai" />)
 
-    fireEvent.click(screen.getByRole('button', { name: /settings.models.manage.fetch_list/i }))
+    fireEvent.click(screen.getByRole('button', { name: /manage/i }))
     expect(manageModelsShowMock).toHaveBeenCalledWith({ providerId: 'openai' })
+
+    fireEvent.click(screen.getByRole('button', { name: /settings.models.manage.fetch_list/i }))
+    expect(syncProviderModelsMock).toHaveBeenCalledWith({ id: 'openai', name: 'openai' })
 
     fireEvent.click(screen.getByRole('button', { name: /settings.models.add.add_model/i }))
     expect(addModelShowMock).toHaveBeenCalled()
