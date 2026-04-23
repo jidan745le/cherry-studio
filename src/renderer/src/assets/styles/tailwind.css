@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import '@cherrystudio/ui/styles/theme.css';
 @import './legacy-vars.css';
+@import './tailwind-default-scope.css';
 
 @source '../../../../../packages/ui/src/**/*.{js,ts,jsx,tsx}';
 @custom-variant dark (&:is(.dark *));

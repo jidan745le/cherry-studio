@@ -76,7 +76,7 @@ export default function ProviderSettingsPage({ isOnboarding = false }: ProviderS
   )
 
   return (
-    <div className="flex h-full min-h-0 w-full overflow-hidden bg-(--color-background)">
+    <div className="provider-settings-default-scope flex h-full min-h-0 w-full overflow-hidden bg-(--color-background)">
       <ProviderList
         providers={providers}
         selectedProviderId={selectedProviderId}

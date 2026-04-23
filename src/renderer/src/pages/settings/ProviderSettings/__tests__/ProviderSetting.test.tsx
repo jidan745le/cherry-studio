@@ -82,7 +82,7 @@ describe('ProviderSetting', () => {
     useProviderSettingMock.mockReturnValue({
       provider: { id: 'openai', isEnabled: true },
       theme: 'light',
-      derived: {
+      computed: {
         fancyProviderName: 'OpenAI',
         officialWebsite: undefined,
         showApiOptionsButton: true

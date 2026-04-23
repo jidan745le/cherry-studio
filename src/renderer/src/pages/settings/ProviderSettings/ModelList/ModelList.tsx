@@ -9,6 +9,7 @@ import AddModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/A
 import DownloadOVMSModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/DownloadOVMSModelPopup'
 import ManageModelsPopup from '@renderer/pages/settings/ProviderSettings/ModelList/ManageModelsPopup'
 import NewApiAddModelPopup from '@renderer/pages/settings/ProviderSettings/ModelList/NewApiAddModelPopup'
+import { cn } from '@renderer/utils'
 import { isNewApiProvider } from '@renderer/utils/provider.v2'
 import type { Model } from '@shared/data/types/model'
 import { parseUniqueModelId } from '@shared/data/types/model'
@@ -17,7 +18,12 @@ import { Download, HeartPulse, Plus, RefreshCw, Search, X } from 'lucide-react'
 import React, { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { ProviderHelpLink, ProviderHelpText, ProviderHelpTextRow } from '../components/ProviderSettingsPrimitives'
+import {
+  modelListClasses,
+  ProviderHelpLink,
+  ProviderHelpText,
+  ProviderHelpTextRow
+} from '../components/ProviderSettingsPrimitives'
 import { getModelGroupLabel, normalizeModelGroupName } from './grouping'
 import ModelListGroup from './ModelListGroup'
 import { useHealthCheck } from './useHealthCheck'
@@ -139,6 +145,15 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
     return ['all', ...sortBy(groups)]
   }, [models])
 
+  const categoryModelCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: models.length }
+    for (const model of models) {
+      const g = normalizeModelGroupName(model.group)
+      counts[g] = (counts[g] ?? 0) + 1
+    }
+    return counts
+  }, [models])
+
   const onManageModel = useCallback(() => {
     if (provider) {
       void ManageModelsPopup.show({ providerId: provider.id })
@@ -197,13 +212,13 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
   const isBusy = isHealthChecking || isBulkUpdating
 
   return (
-    <section data-testid="provider-model-list" className="space-y-4">
-      <div className="flex flex-col gap-4">
+    <section data-testid="provider-model-list" className="space-y-2">
+      <div className="flex flex-col gap-2">
         <div className="mb-2.5 flex items-center justify-between">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2.5">
-              <h2 className="font-semibold text-(--color-foreground) text-base">{t('common.models')}</h2>
-              <span className="text-(--color-muted-foreground) text-sm">
+              <h2 className={modelListClasses.sectionTitle}>{t('common.models')}</h2>
+              <span className={modelListClasses.countMeta}>
                 {enabledModelCount}/{modelCount} {t('common.enabled')}
               </span>
             </div>
@@ -212,7 +227,7 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto rounded-3xs px-2.5 py-[4px] text-sm text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
+              className={modelListClasses.toolbarHeaderGhost}
               disabled={!hasVisibleModels || isBusy}
               onClick={() => void updateVisibleModelsEnabledState(!allEnabled)}>
               {allEnabled ? t('settings.models.check.disabled') : t('settings.models.check.enabled')}
@@ -220,89 +235,85 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto rounded-3xs px-2.5 py-[4px] text-sm text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
+              className={cn(modelListClasses.toolbarHeaderGhost, 'gap-1')}
               disabled={!hasVisibleModels || isBusy}
               onClick={runHealthCheck}>
-              <HeartPulse size={9} />
+              <HeartPulse className={modelListClasses.toolbarHeaderIcon} />
               {t('settings.models.check.button_caption')}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto rounded-3xs px-2.5 py-[4px] text-sm text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
+              className={cn(modelListClasses.toolbarHeaderGhost, 'gap-1')}
               disabled={isBusy}
               onClick={onManageModel}>
-              <RefreshCw size={9} />
+              <RefreshCw className={modelListClasses.toolbarHeaderIcon} />
               {t('manage')}
             </Button>
           </div>
         </div>
         <div className="mb-2 flex items-center gap-2">
-          <div className="flex flex-1 items-center gap-1.5 rounded-3xs border border-border/30 bg-foreground/[0.03] px-2.5 py-[5px] shadow-none">
-            <Search size={10} className="shrink-0 text-foreground/55" />
+          <div className={modelListClasses.searchWrap}>
+            <Search className={modelListClasses.searchIcon} />
             <input
               type="text"
               value={searchText}
               placeholder={t('models.search.placeholder')}
               onChange={(event) => setSearchText(event.target.value)}
-              className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground/80 outline-none placeholder:text-foreground/50"
+              className={modelListClasses.searchInput}
             />
             {searchText && (
-              <button
-                type="button"
-                onClick={() => setSearchText('')}
-                className="text-foreground/45 transition-colors hover:text-foreground/65">
+              <button type="button" onClick={() => setSearchText('')} className={modelListClasses.searchClear}>
                 <X size={9} />
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Button
+              variant="outline"
               onClick={onManageModel}
               size="sm"
-              className="h-auto rounded-3xs border-border/40 bg-transparent px-3 py-[6px] text-sm text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
+              className={cn(modelListClasses.fetchOutline, 'gap-1.5')}
               disabled={isBusy}>
-              <Download size={10} />
+              <Download className={modelListClasses.toolbarIcon} />
               {t('settings.models.manage.fetch_list')}
             </Button>
             {provider?.id !== 'ovms' ? (
               <Button
                 onClick={onAddModel}
                 size="icon-sm"
-                className="size-8 rounded-3xs border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
+                className={modelListClasses.addIconButton}
                 disabled={isBusy}
                 aria-label={t('settings.models.add.add_model')}>
-                <Plus size={11} />
+                <Plus className={modelListClasses.toolbarIcon} />
               </Button>
             ) : (
               <Button
                 onClick={onDownloadModel}
                 size="icon-sm"
-                className="size-8 rounded-3xs border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
+                className={modelListClasses.addIconButton}
                 disabled={isBusy}
                 aria-label={t('button.download')}>
-                <Plus size={11} />
+                <Plus className={modelListClasses.toolbarIcon} />
               </Button>
             )}
           </div>
         </div>
         {!hasNoModels && (
-          <div className="mb-2.5 flex flex-wrap items-center gap-[5px]">
+          <div className={modelListClasses.chipRow}>
             {categoryOptions.map((group) => {
               const isActive = selectedGroup === group
               const label = group === 'all' ? t('settings.models.check.all') : getModelGroupLabel(group, t)
+              const count = categoryModelCounts[group] ?? 0
 
               return (
                 <button
                   key={group}
                   type="button"
                   onClick={() => setSelectedGroup(group)}
-                  className={
-                    isActive
-                      ? 'rounded-3xs border border-foreground/[0.15] bg-foreground/[0.1] px-2.5 py-[4px] text-xs text-foreground/85'
-                      : 'rounded-3xs border border-foreground/[0.12] bg-transparent px-2.5 py-[4px] text-xs text-foreground/65 transition hover:border-foreground/[0.2] hover:bg-accent/40 hover:text-foreground/80'
-                  }>
-                  {label}
+                  className={isActive ? modelListClasses.chipActive : modelListClasses.chipIdle}>
+                  <span className={modelListClasses.chipLabel}>{label}</span>
+                  <span className={modelListClasses.chipCount}>{count}</span>
                 </button>
               )
             })}
@@ -310,24 +321,22 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
         )}
         {isLoading ? (
           <div className="flex items-center justify-center py-6">
-            <LoadingIcon color="var(--color-text-2)" />
+            <LoadingIcon color="var(--muted-foreground)" />
           </div>
         ) : hasNoModels ? (
-          <div className="flex min-h-40 items-center justify-center rounded-2xl border border-(--color-border) border-dashed bg-(--color-background-soft) px-4 text-center text-(--color-muted-foreground) text-sm">
-            {t('settings.models.empty')}
-          </div>
+          <div className={modelListClasses.emptyState}>{t('settings.models.empty')}</div>
         ) : !hasVisibleModels ? (
-          <div className="flex min-h-40 items-center justify-center rounded-2xl border border-(--color-border) border-dashed bg-(--color-background-soft) px-4 text-center text-(--color-muted-foreground) text-sm">
-            {t('common.no_results')}
-          </div>
+          <div className={modelListClasses.emptyState}>{t('common.no_results')}</div>
         ) : (
-          <div className="max-h-[380px] overflow-y-auto -mx-1 [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[2px]">
+          <div className={modelListClasses.listScroller}>
             <div className="flex flex-col gap-5">
               {!isEmpty(enabledGroups) && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 px-1">
-                    <p className="font-medium text-foreground/75 text-xs">{t('settings.models.check.enabled')}</p>
-                    <span className="text-foreground/60 text-xs">{countModelsInGroups(enabledGroups)}</span>
+                  <div className={modelListClasses.subsectionRow}>
+                    <p className={modelListClasses.subsectionTitleEnabled}>{t('settings.models.check.enabled')}</p>
+                    <span className={modelListClasses.subsectionCountEnabled}>
+                      {countModelsInGroups(enabledGroups)}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-3">
                     {Object.keys(enabledGroups).map((group, index) => (
@@ -349,9 +358,9 @@ const ModelList: React.FC<ModelListProps> = ({ providerId }) => {
               )}
               {!isEmpty(disabledGroups) && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 px-1">
-                    <p className="font-medium text-foreground/70 text-xs">{t('settings.models.check.disabled')}</p>
-                    <span className="text-foreground/55 text-xs">{disabledModelCount}</span>
+                  <div className={modelListClasses.subsectionRow}>
+                    <p className={modelListClasses.subsectionTitleDisabled}>{t('settings.models.check.disabled')}</p>
+                    <span className={modelListClasses.subsectionCountDisabled}>{disabledModelCount}</span>
                   </div>
                   <div className="flex flex-col gap-3">
                     {Object.keys(disabledGroups).map((group, index) => (

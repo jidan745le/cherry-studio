@@ -1,12 +1,46 @@
-import { Button, HelpTooltip, InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@cherrystudio/ui'
+import { HelpTooltip, InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Tooltip } from '@cherrystudio/ui'
 import CherryINSettings from '@renderer/pages/settings/ProviderSettings/CherryINSettings'
 import { Settings2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import type { UseProviderSettingResult } from '../hooks/useProviderSetting'
-import ProviderActions from './ProviderActions'
 import ProviderField from './ProviderField'
 import ProviderSection from './ProviderSection'
+import { fieldClasses } from './ProviderSettingsPrimitives'
+
+function AzureApiVersionField({
+  className,
+  apiVersion,
+  onApiVersionChange,
+  onApiVersionCommit
+}: {
+  className?: string
+  apiVersion: string
+  onApiVersionChange: (value: string) => void
+  onApiVersionCommit: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <ProviderField
+      className={className}
+      title={t('settings.provider.api_version')}
+      help={
+        <div className="pt-1 text-[12px] text-foreground/55 leading-[1.35]">
+          {t('settings.provider.azure.apiversion.tip')}
+        </div>
+      }>
+      <InputGroup className={fieldClasses.inputGroupBlock}>
+        <InputGroupInput
+          className={fieldClasses.input}
+          value={apiVersion}
+          placeholder="2024-xx-xx-preview"
+          onChange={(event) => onApiVersionChange(event.target.value)}
+          onBlur={onApiVersionCommit}
+        />
+      </InputGroup>
+    </ProviderField>
+  )
+}
 
 interface ConnectionSectionProps {
   viewModel: UseProviderSettingResult
@@ -15,27 +49,16 @@ interface ConnectionSectionProps {
 
 export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: ConnectionSectionProps) {
   const { t } = useTranslation()
-  const { provider, drafts, derived, actions } = viewModel
+  const { provider, drafts, computed, actions } = viewModel
 
-  if (!provider || !derived.isConnectionFieldVisible) {
-    return derived.isAzureOpenAI ? (
+  if (!provider || !computed.isConnectionFieldVisible) {
+    return computed.isAzureOpenAI ? (
       <ProviderSection>
-        <ProviderField
-          title={t('settings.provider.api_version')}
-          help={
-            <div className="pt-1 text-(--color-text) text-xs opacity-60">
-              {t('settings.provider.azure.apiversion.tip')}
-            </div>
-          }>
-          <InputGroup className="rounded-3xs border-border/30 bg-foreground/[0.03] shadow-none">
-            <InputGroupInput
-              value={drafts.apiVersion}
-              placeholder="2024-xx-xx-preview"
-              onChange={(event) => drafts.setApiVersion(event.target.value)}
-              onBlur={actions.commitApiVersion}
-            />
-          </InputGroup>
-        </ProviderField>
+        <AzureApiVersionField
+          apiVersion={drafts.apiVersion}
+          onApiVersionChange={drafts.setApiVersion}
+          onApiVersionCommit={actions.commitApiVersion}
+        />
       </ProviderSection>
     ) : null
   }
@@ -53,93 +76,82 @@ export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: Co
             <HelpTooltip title={t('settings.provider.api.url.tip')} />
           </div>
         }
-        action={
-          <ProviderActions>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-8 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
-              onClick={onOpenCustomHeaders}>
-              <Settings2 size={14} />
-            </Button>
-          </ProviderActions>
-        }
         help={
           drafts.activeHostField === 'apiHost' ? (
             <div className="space-y-1 pt-1">
               {provider.id === 'vertexai' && (
-                <div className="text-(--color-text) text-xs opacity-60">
+                <div className="text-[12px] text-foreground/55 leading-[1.35]">
                   {t('settings.provider.vertex_ai.api_host_help')}
                 </div>
               )}
-              <div className="break-all text-(--color-text) text-xs opacity-60">
-                {t('settings.provider.api_host_preview', { url: derived.hostPreview })}
+              <div className="break-all text-[12px] text-foreground/55 leading-[1.35]">
+                {t('settings.provider.api_host_preview', { url: computed.hostPreview })}
               </div>
             </div>
           ) : (
-            <div className="break-all pt-1 text-(--color-text) text-xs opacity-60">
+            <div className="break-all pt-1 text-[12px] text-foreground/55 leading-[1.35]">
               {t('settings.provider.anthropic_api_host_preview', {
-                url: derived.anthropicHostPreview || '—'
+                url: computed.anthropicHostPreview || '—'
               })}
             </div>
           )
         }>
         {drafts.activeHostField === 'apiHost' ? (
-          derived.isCherryIN && derived.isChineseUser ? (
+          computed.isCherryIN && computed.isChineseUser ? (
             <CherryINSettings providerId={provider.id} />
           ) : (
-            <InputGroup className="rounded-3xs border-border/30 bg-foreground/[0.03] shadow-none">
-              <InputGroupInput
-                className="text-sm"
-                value={drafts.apiHost}
-                placeholder={t('settings.provider.api_host')}
-                onChange={(event) => drafts.setApiHost(event.target.value)}
-                onBlur={actions.commitApiHost}
-              />
-              {derived.isApiHostResettable && (
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    variant="destructive"
-                    size="sm"
-                    className="rounded-3xs"
-                    onClick={actions.resetApiHost}>
-                    {t('settings.provider.api.url.reset')}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              )}
-            </InputGroup>
+            <div className={fieldClasses.inputRow}>
+              <InputGroup className={fieldClasses.inputGroup}>
+                <InputGroupInput
+                  className={fieldClasses.input}
+                  value={drafts.apiHost}
+                  placeholder={t('settings.provider.api_host')}
+                  onChange={(event) => drafts.setApiHost(event.target.value)}
+                  onBlur={actions.commitApiHost}
+                />
+                {computed.isApiHostResettable && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-lg text-[12px]"
+                      onClick={actions.resetApiHost}>
+                      {t('settings.provider.api.url.reset')}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                )}
+              </InputGroup>
+              <Tooltip content={t('settings.provider.copilot.custom_headers')}>
+                <span className={fieldClasses.inputRowEndSlot}>
+                  <button type="button" className={fieldClasses.iconButton} onClick={onOpenCustomHeaders}>
+                    <Settings2 size={12} />
+                  </button>
+                </span>
+              </Tooltip>
+            </div>
           )
         ) : (
-          <InputGroup className="rounded-3xs border-border/30 bg-foreground/[0.03] shadow-none">
-            <InputGroupInput
-              className="text-sm"
-              value={drafts.anthropicApiHost}
-              placeholder={t('settings.provider.anthropic_api_host')}
-              onChange={(event) => drafts.setAnthropicApiHost(event.target.value)}
-              onBlur={actions.commitAnthropicApiHost}
-            />
-          </InputGroup>
+          <div className={fieldClasses.inputRow}>
+            <InputGroup className={fieldClasses.inputGroup}>
+              <InputGroupInput
+                className={fieldClasses.input}
+                value={drafts.anthropicApiHost}
+                placeholder={t('settings.provider.anthropic_api_host')}
+                onChange={(event) => drafts.setAnthropicApiHost(event.target.value)}
+                onBlur={actions.commitAnthropicApiHost}
+              />
+            </InputGroup>
+            <span className={fieldClasses.inputRowEndSlot} aria-hidden />
+          </div>
         )}
       </ProviderField>
-      {derived.isAzureOpenAI && (
-        <ProviderField
+      {computed.isAzureOpenAI && (
+        <AzureApiVersionField
           className="mt-4"
-          title={t('settings.provider.api_version')}
-          help={
-            <div className="pt-1 text-(--color-text) text-xs opacity-60">
-              {t('settings.provider.azure.apiversion.tip')}
-            </div>
-          }>
-          <InputGroup className="rounded-3xs border-border/30 bg-foreground/[0.03] shadow-none">
-            <InputGroupInput
-              className="text-sm"
-              value={drafts.apiVersion}
-              placeholder="2024-xx-xx-preview"
-              onChange={(event) => drafts.setApiVersion(event.target.value)}
-              onBlur={actions.commitApiVersion}
-            />
-          </InputGroup>
-        </ProviderField>
+          apiVersion={drafts.apiVersion}
+          onApiVersionChange={drafts.setApiVersion}
+          onApiVersionCommit={actions.commitApiVersion}
+        />
       )}
     </ProviderSection>
   )

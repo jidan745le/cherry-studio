@@ -24,7 +24,7 @@ interface ProviderSpecificSettingsProps {
 
 export default function ProviderSpecificSettings({ viewModel, placement }: ProviderSpecificSettingsProps) {
   const { t } = useTranslation()
-  const { provider, derived, actions } = viewModel
+  const { provider, computed, actions } = viewModel
 
   if (!provider) {
     return null
@@ -34,10 +34,10 @@ export default function ProviderSpecificSettings({ viewModel, placement }: Provi
     return (
       <>
         {isProviderSupportAuth(provider) && <ProviderOAuth providerId={provider.id} />}
-        {derived.isCherryIN && <CherryINOAuth providerId={provider.id} />}
+        {computed.isCherryIN && <CherryINOAuth providerId={provider.id} />}
         {provider.id === 'openai' && <OpenAIAlert />}
         {provider.id === 'ovms' && <OVMSSettings />}
-        {derived.isDmxapi && <DMXAPISettings providerId={provider.id} />}
+        {computed.isDmxapi && <DMXAPISettings providerId={provider.id} />}
         {provider.id === 'anthropic' && (
           <ProviderSection>
             <ProviderField title={t('settings.provider.anthropic.auth_method')}>

@@ -7,10 +7,9 @@ import { Minus } from 'lucide-react'
 import React, { memo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { modelListClasses } from '../components/ProviderSettingsPrimitives'
 import { getModelGroupLabel } from './grouping'
 import ModelListItem from './ModelListItem'
-
-const MAX_SCROLLER_HEIGHT = 390
 
 interface ModelListGroupProps {
   groupName: string
@@ -53,7 +52,7 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
         onChange={handleCollapseChange}
         label={
           <Flex className="items-center gap-[10px]">
-            <span className="font-semibold text-(--color-foreground) text-sm">{groupLabel}</span>
+            <span className={modelListClasses.groupTitle}>{groupLabel}</span>
           </Flex>
         }
         extra={
@@ -72,7 +71,8 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
         }
         styles={{
           header: {
-            padding: '6px calc(6px + var(--scrollbar-width)) 6px 14px',
+            padding:
+              'var(--padding-y-control) calc(var(--padding-y-control) + var(--scrollbar-width)) var(--padding-y-control) var(--padding-x-list-group)',
             background: 'transparent'
           }
         }}
@@ -86,7 +86,7 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
           estimateSize={useCallback(() => 52, [])}
           overscan={5}
           scrollerStyle={{
-            maxHeight: `${MAX_SCROLLER_HEIGHT}px`,
+            maxHeight: 'var(--max-height-scroll-sm)',
             padding: '4px 6px 4px 12px',
             scrollbarGutter: 'stable'
           }}

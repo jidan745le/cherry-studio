@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 
 import { FreeTrialModelTagV2 } from '../components/FreeTrialModelTagV2'
 import ModelIdWithTagsV2 from '../components/ModelIdWithTagsV2'
+import { modelListClasses } from '../components/ProviderSettingsPrimitives'
 
 interface ModelListItemProps {
   ref?: React.RefObject<HTMLDivElement>
@@ -71,32 +72,69 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
     onRemove(model)
   }, [model, onRemove])
 
+  const metaLine = useMemo(() => {
+    const parts: string[] = []
+
+    if (model.description) {
+      parts.push(model.description)
+    }
+
+    if (model.pricing?.input?.perMillionTokens != null) {
+      parts.push(`Input $${model.pricing.input.perMillionTokens.toFixed(2)}/M`)
+    }
+
+    if (model.pricing?.output?.perMillionTokens != null) {
+      parts.push(`Output $${model.pricing.output.perMillionTokens.toFixed(2)}/M`)
+    }
+
+    if (model.contextWindow) {
+      const contextLabel =
+        model.contextWindow >= 1_000_000
+          ? `${Math.round(model.contextWindow / 1_000_000)}M`
+          : model.contextWindow >= 1_000
+            ? `${Math.round(model.contextWindow / 1_000)}K`
+            : `${model.contextWindow}`
+      parts.push(contextLabel)
+    }
+
+    return parts.join(' · ')
+  }, [
+    model.contextWindow,
+    model.description,
+    model.pricing?.input?.perMillionTokens,
+    model.pricing?.output?.perMillionTokens
+  ])
+
   return (
-    <div ref={ref} className="flex items-center gap-2 px-3 py-[6px] text-(--color-text) leading-none">
-      <RowFlex className="flex-1 items-center gap-2">
+    <div ref={ref} className={modelListClasses.row}>
+      <RowFlex className="flex-1 items-start gap-3">
         {(() => {
           const Icon = getModelLogo(model)
           return Icon ? (
-            <Icon.Avatar size={20} />
+            <Icon.Avatar size={26} />
           ) : (
-            <Avatar className="h-5 w-5">
+            <Avatar className="h-[26px] w-[26px]">
               <AvatarFallback>{model.name?.[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
           )
         })()}
-        <ModelIdWithTagsV2
-          model={model}
-          fontSize={13}
-          showIdentifier={showIdentifier}
-          style={{
-            flex: 1,
-            width: 0,
-            overflow: 'hidden'
-          }}
-        />
-        <FreeTrialModelTagV2 modelId={model.id} providerId={model.providerId} />
+        <div className="min-w-0 flex-1">
+          <ModelIdWithTagsV2
+            model={model}
+            fontSize="var(--font-size-row-title)"
+            showIdentifier={showIdentifier}
+            style={{
+              width: '100%',
+              overflow: 'hidden'
+            }}
+          />
+          {metaLine && <div className={modelListClasses.rowMeta}>{metaLine}</div>}
+          <div className="mt-1">
+            <FreeTrialModelTagV2 modelId={model.id} providerId={model.providerId} />
+          </div>
+        </div>
       </RowFlex>
-      <RowFlex className="items-center gap-1">
+      <RowFlex className="items-center gap-1.5">
         <HealthStatusIndicator
           results={healthResults}
           loading={isChecking}
@@ -110,8 +148,8 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
               onClick={handleEdit}
               disabled={disabled}
               size="icon-sm"
-              className="size-7 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground">
-              <Bolt size={12} />
+              className={modelListClasses.rowIconButton}>
+              <Bolt className={modelListClasses.toolbarIcon} />
             </Button>
           </Tooltip>
           <Tooltip content={t('settings.models.manage.remove_model')}>
@@ -120,8 +158,8 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
               onClick={handleRemove}
               disabled={disabled}
               size="icon-sm"
-              className="size-7 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground">
-              <Minus size={12} />
+              className={modelListClasses.rowIconButton}>
+              <Minus className={modelListClasses.toolbarIcon} />
             </Button>
           </Tooltip>
         </RowFlex>

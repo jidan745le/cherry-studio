@@ -39,16 +39,23 @@ const ProviderOAuth: FC<Props> = ({ providerId }) => {
     <Container>
       {Icon ? <Icon.Avatar size={60} /> : <ProviderLogoFallback>{provider.name[0]}</ProviderLogoFallback>}
       {!hasApiKeys(provider) ? (
-        <OAuthButton provider={{ id: provider.id } as any} onSuccess={setApiKey}>
+        <OAuthButton
+          provider={{ id: provider.id } as any}
+          onSuccess={setApiKey}
+          className="!rounded-lg !px-3 !py-[6px] !text-[13px]">
           {t('settings.provider.oauth.button', { provider: getProviderLabel(provider.id) })}
         </OAuthButton>
       ) : (
         <RowFlex className="gap-2.5">
-          <Button className="rounded-full" onClick={() => providerCharge(provider.id)}>
+          <Button
+            className="rounded-lg px-3 py-[6px] text-[13px] shadow-none"
+            onClick={() => providerCharge(provider.id)}>
             <CircleDollarSign size={16} />
             {t('settings.provider.charge')}
           </Button>
-          <Button className="rounded-full" onClick={() => providerBills(provider.id)}>
+          <Button
+            className="rounded-lg px-3 py-[6px] text-[13px] shadow-none"
+            onClick={() => providerBills(provider.id)}>
             <ReceiptText size={16} />
             {t('settings.provider.bills')}
           </Button>
@@ -74,8 +81,8 @@ const Container = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  padding: 20px;
+  gap: 12px;
+  padding: 12px 0 8px;
 `
 
 const ProviderLogoFallback = styled.div`
@@ -91,7 +98,8 @@ const ProviderLogoFallback = styled.div`
 `
 
 const Description = styled.div`
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.35;
   color: var(--color-text-2);
   display: flex;
   align-items: center;

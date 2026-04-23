@@ -26,12 +26,12 @@ export default function ProviderListItem({
       data-dragging={dragging ? 'true' : 'false'}
       onClick={onClick}
       className={cn(
-        'group relative flex w-full items-center justify-between rounded-3xs px-3 py-2.5 text-left transition-all',
+        'group relative flex w-full items-center justify-between rounded-xl px-2 py-[12px] text-left transition-all',
         selected ? 'bg-cherry-active-bg' : 'border border-transparent hover:bg-accent/40',
         dragging && 'opacity-65'
       )}>
       {selected && (
-        <div className="pointer-events-none absolute inset-0 rounded-3xs border border-cherry-active-border" />
+        <div className="pointer-events-none absolute inset-0 rounded-xl border border-cherry-active-border" />
       )}
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span
@@ -39,17 +39,17 @@ export default function ProviderListItem({
             'flex shrink-0 text-foreground/40 opacity-0 transition-opacity',
             selected ? 'opacity-100' : 'group-hover:opacity-100'
           )}>
-          <GripVertical size={12} />
+          <GripVertical size={9} />
         </span>
-        <ProviderAvatar provider={provider} customLogos={customLogos} size={18} className="shrink-0 rounded-md" />
+        <ProviderAvatar provider={provider} customLogos={customLogos} size={14} className="shrink-0 rounded-md" />
         <span
-          className={cn('truncate text-sm', selected ? 'text-foreground/90' : 'text-foreground/80')}
+          className={cn('truncate text-[13px] leading-[1.35]', selected ? 'text-foreground/90' : 'text-foreground/80')}
           style={{ fontWeight: selected ? 500 : 400 }}>
           {provider.name}
         </span>
       </div>
       <div className={cn('shrink-0', selected ? 'text-foreground/50' : 'text-foreground/35')}>
-        <ChevronRight size={12} />
+        <ChevronRight size={9} />
       </div>
     </button>
   )

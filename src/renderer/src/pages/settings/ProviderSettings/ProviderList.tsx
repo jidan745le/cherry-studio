@@ -122,10 +122,10 @@ export default function ProviderList({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="truncate font-semibold text-(--color-foreground) text-sm">
+              <h2 className="truncate font-semibold text-[14px] text-foreground/85 leading-[1.3]">
                 {t('settings.provider.title')}
               </h2>
-              <Badge variant="outline" className="h-5 rounded-full px-2 py-0 text-xs">
+              <Badge variant="outline" className="h-6 rounded-full px-2.5 py-0 text-[12px] leading-none">
                 {filteredProviders.length}
               </Badge>
             </div>
@@ -136,7 +136,7 @@ export default function ProviderList({
             <button
               type="button"
               disabled={dragging}
-              className="flex size-7 items-center justify-center rounded-3xs text-foreground/55 transition-colors hover:bg-accent/40 hover:text-foreground">
+              className="flex size-5 items-center justify-center text-foreground/55 transition-colors hover:text-foreground/80">
               <Filter size={11} className={cn(agentFilterEnabled && 'text-(--color-primary)')} />
             </button>
           </PopoverTrigger>
@@ -144,7 +144,7 @@ export default function ProviderList({
             <MenuList>
               <MenuItem
                 label={t('settings.provider.filter.all')}
-                className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                className="rounded-3xs px-2 py-[5px] text-[13px] hover:bg-accent/40"
                 icon={
                   <Check
                     className={cn('size-4', !agentFilterEnabled && 'opacity-100', agentFilterEnabled && 'opacity-0')}
@@ -154,7 +154,7 @@ export default function ProviderList({
               />
               <MenuItem
                 label={t('settings.provider.filter.agent')}
-                className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                className="rounded-3xs px-2 py-[5px] text-[13px] hover:bg-accent/40"
                 icon={
                   <Check
                     className={cn('size-4', agentFilterEnabled && 'opacity-100', !agentFilterEnabled && 'opacity-0')}
@@ -167,8 +167,8 @@ export default function ProviderList({
         </Popover>
       </div>
       <div className="px-3 pb-1.5">
-        <div className="flex items-center gap-2 rounded-3xs border border-border/30 bg-foreground/[0.03] px-3 py-2 shadow-none">
-          <Search size={14} className="shrink-0 text-foreground/50" />
+        <div className="flex items-center gap-1.5 rounded-lg border border-border/20 bg-foreground/[0.03] px-2 py-[4px]">
+          <Search size={9} className="shrink-0 text-foreground/50" />
           <input
             value={searchText}
             placeholder={t('settings.provider.search')}
@@ -180,7 +180,7 @@ export default function ProviderList({
               }
             }}
             disabled={dragging}
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground/80 outline-none placeholder:text-foreground/40"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground/80 outline-none placeholder:text-foreground/40"
           />
         </div>
       </div>
@@ -225,14 +225,14 @@ export default function ProviderList({
                       {showManagementActions && (
                         <MenuItem
                           label={t('common.edit')}
-                          className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                          className="rounded-3xs px-2 py-[5px] text-[13px] hover:bg-accent/40"
                           icon={<Edit size={14} />}
                           onClick={() => void onEditProvider(provider)}
                         />
                       )}
                       <MenuItem
                         label={t('settings.provider.notes.title')}
-                        className="rounded-3xs px-2 py-[5px] text-[11px] hover:bg-accent/40"
+                        className="rounded-3xs px-2 py-[5px] text-[13px] hover:bg-accent/40"
                         icon={<UserPen size={14} />}
                         onClick={() => ModelNotesPopup.show({ providerId: provider.id })}
                       />
@@ -241,7 +241,7 @@ export default function ProviderList({
                           label={t('common.delete')}
                           icon={<Trash2 size={14} />}
                           onClick={() => void onDeleteProvider(provider)}
-                          className="rounded-3xs px-2 py-[5px] text-(--color-destructive) text-[11px] hover:bg-accent/40"
+                          className="rounded-3xs px-2 py-[5px] text-[13px] text-(--color-destructive) hover:bg-accent/40"
                         />
                       )}
                     </MenuList>
@@ -251,7 +251,7 @@ export default function ProviderList({
             }}
           />
         ) : (
-          <div className="flex h-full min-h-40 items-center justify-center px-3 text-center text-(--color-muted-foreground) text-sm">
+          <div className="flex h-full min-h-40 items-center justify-center px-3 text-center text-[14px] text-(--color-muted-foreground)">
             {t('common.no_results')}
           </div>
         )}
@@ -261,7 +261,7 @@ export default function ProviderList({
           type="button"
           onClick={() => void onAddProvider()}
           disabled={dragging}
-          className="flex w-full items-center justify-center gap-2 rounded-3xs border border-border/40 border-dashed bg-transparent py-2 text-[11px] text-muted-foreground/70 shadow-none transition-colors hover:bg-accent/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
+          className="flex w-full items-center justify-center gap-2 rounded-3xs border border-border/40 border-dashed bg-transparent py-2 text-[13px] text-muted-foreground/70 shadow-none transition-colors hover:bg-accent/40 hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
           <PlusIcon size={14} />
           <span>{t('button.add')}</span>
         </button>

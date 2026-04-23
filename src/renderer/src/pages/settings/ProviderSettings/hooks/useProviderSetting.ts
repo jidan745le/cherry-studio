@@ -88,7 +88,7 @@ export interface UseProviderSettingResult {
     activeHostField: HostField
     setActiveHostField: (value: HostField) => void
   }
-  derived: {
+  computed: {
     providerApiKey: string
     fancyProviderName: string
     officialWebsite?: string
@@ -159,6 +159,7 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   const [anthropicApiHost, setAnthropicApiHost] = useState(providerAnthropicHost)
   const [apiVersion, setApiVersion] = useState(providerApiVersion)
   const [localApiKey, setLocalApiKey] = useState(providerApiKey)
+  const [isApiKeyDirty, setIsApiKeyDirty] = useState(false)
   const [activeHostField, setActiveHostField] = useState<HostField>('apiHost')
   const [apiKeyConnectivity, setApiKeyConnectivity] = useState<ApiKeyConnectivity>({
     status: HealthStatus.NOT_CHECKED,
@@ -178,6 +179,12 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   const showApiOptionsButton = provider ? !isSystemProvider(provider) || isAnthropicSupportedProvider(provider) : false
   const isApiKeyFieldVisible = !hideApiInput && !isAnthropicOAuth && !hideApiKeyInput
   const isConnectionFieldVisible = !hideApiInput && !isAnthropicOAuth && !isDmxapi
+  const normalizedLocalApiKey = useMemo(() => formatApiKeys(localApiKey), [localApiKey])
+
+  const updateLocalApiKey = useCallback((value: string) => {
+    setIsApiKeyDirty(true)
+    setLocalApiKey(value)
+  }, [])
 
   const debouncedUpdateApiKey = useMemo(
     () =>
@@ -203,9 +210,17 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
   )
 
   useEffect(() => {
-    setLocalApiKey(providerApiKey)
-    setApiKeyConnectivity({ status: HealthStatus.NOT_CHECKED, checking: false })
-  }, [providerApiKey])
+    if (!isApiKeyDirty) {
+      setLocalApiKey(providerApiKey)
+      setApiKeyConnectivity({ status: HealthStatus.NOT_CHECKED, checking: false })
+      return
+    }
+
+    if (normalizedLocalApiKey === providerApiKey) {
+      setIsApiKeyDirty(false)
+      setApiKeyConnectivity({ status: HealthStatus.NOT_CHECKED, checking: false })
+    }
+  }, [isApiKeyDirty, normalizedLocalApiKey, providerApiKey])
 
   useEffect(() => {
     if (provider && localApiKey !== providerApiKey) {
@@ -557,11 +572,11 @@ export function useProviderSetting(providerId: string, isOnboarding = false): Us
       apiVersion,
       setApiVersion,
       localApiKey,
-      setLocalApiKey,
+      setLocalApiKey: updateLocalApiKey,
       activeHostField,
       setActiveHostField
     },
-    derived: {
+    computed: {
       providerApiKey,
       fancyProviderName,
       officialWebsite: providerConfig?.websites?.official,

@@ -1,11 +1,12 @@
-import { Button, InputGroup, InputGroupAddon, InputGroupInput, Tooltip, WarnTooltip } from '@cherrystudio/ui'
-import { Settings2 } from 'lucide-react'
+import { InputGroup, InputGroupAddon, InputGroupInput, Tooltip, WarnTooltip } from '@cherrystudio/ui'
+import { Copy, Eye, EyeOff } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { UseProviderSettingResult } from '../hooks/useProviderSetting'
-import ProviderActions from './ProviderActions'
 import ProviderField from './ProviderField'
 import ProviderSection from './ProviderSection'
+import { fieldClasses } from './ProviderSettingsPrimitives'
 
 interface AuthenticationSectionProps {
   viewModel: UseProviderSettingResult
@@ -13,66 +14,85 @@ interface AuthenticationSectionProps {
 
 export default function AuthenticationSection({ viewModel }: AuthenticationSectionProps) {
   const { t } = useTranslation()
-  const { provider, drafts, derived, status, actions } = viewModel
+  const { provider, drafts, computed, status, actions } = viewModel
+  const [showApiKey, setShowApiKey] = useState(false)
 
-  if (!provider || !derived.isApiKeyFieldVisible) {
+  useEffect(() => {
+    setShowApiKey(false)
+  }, [provider?.id])
+
+  if (!provider || !computed.isApiKeyFieldVisible) {
     return null
   }
 
   return (
     <ProviderSection>
       <ProviderField
+        className="space-y-2.5"
         title={t('settings.provider.api_key.label')}
         action={
-          provider.id !== 'copilot' ? (
-            <ProviderActions>
-              <Tooltip content={t('settings.provider.api.key.list.open')}>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-8 rounded-3xs border border-border/40 bg-transparent text-muted-foreground/70 shadow-none hover:bg-accent/40 hover:text-foreground"
-                  onClick={() => void actions.openApiKeyList()}>
-                  <Settings2 size={14} />
-                </Button>
-              </Tooltip>
-            </ProviderActions>
+          computed.apiKeyWebsite && !computed.isDmxapi ? (
+            <a
+              href={computed.apiKeyWebsite}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 text-(--color-primary) text-[12px] leading-[1.35] hover:underline">
+              {t('settings.provider.get_api_key')}
+            </a>
           ) : undefined
-        }
-        help={
-          <div className="flex items-center justify-between gap-3 pt-1 text-(--color-text) text-xs opacity-60">
-            <div>
-              {derived.apiKeyWebsite && !derived.isDmxapi && (
-                <a
-                  href={derived.apiKeyWebsite}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mr-2 text-(--color-primary) hover:underline">
-                  {t('settings.provider.get_api_key')}
-                </a>
-              )}
-            </div>
-            <div>{t('settings.provider.api_key.tip')}</div>
-          </div>
         }>
-        <InputGroup className="rounded-3xs border-border/30 bg-foreground/[0.03] shadow-none">
-          <InputGroupInput
-            type="password"
-            className="text-sm"
-            value={drafts.localApiKey}
-            placeholder={t('settings.provider.api_key.label')}
-            onChange={(event) => drafts.setLocalApiKey(event.target.value)}
-            autoFocus={provider.isEnabled && !derived.providerApiKey}
-            disabled={provider.id === 'copilot'}
-          />
-          {status.apiKeyConnectivity.status === 'failed' && !status.apiKeyConnectivity.checking && (
-            <InputGroupAddon align="inline-end">
-              <WarnTooltip
-                content={status.apiKeyConnectivity.error?.message || t('settings.models.check.failed')}
-                onClick={actions.showApiKeyError}
-              />
-            </InputGroupAddon>
-          )}
-        </InputGroup>
+        <div className={fieldClasses.inputRow}>
+          <InputGroup className={fieldClasses.inputGroup}>
+            <InputGroupInput
+              type={showApiKey ? 'text' : 'password'}
+              className={fieldClasses.input}
+              value={drafts.localApiKey}
+              placeholder={t('settings.provider.api_key.label')}
+              onChange={(event) => drafts.setLocalApiKey(event.target.value)}
+              autoFocus={provider.isEnabled && !computed.providerApiKey}
+              disabled={provider.id === 'copilot'}
+            />
+            {provider.id !== 'copilot' && (
+              <InputGroupAddon align="inline-end">
+                <Tooltip
+                  content={
+                    showApiKey ? t('settings.provider.api_key.hide_key') : t('settings.provider.api_key.show_key')
+                  }>
+                  <button
+                    type="button"
+                    className={fieldClasses.apiKeyVisibilityToggle}
+                    onClick={() => setShowApiKey((v) => !v)}>
+                    {showApiKey ? <EyeOff size={12} /> : <Eye size={12} />}
+                  </button>
+                </Tooltip>
+              </InputGroupAddon>
+            )}
+            {status.apiKeyConnectivity.status === 'failed' && !status.apiKeyConnectivity.checking && (
+              <InputGroupAddon align="inline-end">
+                <WarnTooltip
+                  content={status.apiKeyConnectivity.error?.message || t('settings.models.check.failed')}
+                  onClick={actions.showApiKeyError}
+                />
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+          <Tooltip content={t('settings.provider.api_key.copy')}>
+            <span className="inline-flex">
+              <button
+                type="button"
+                disabled={provider.id === 'copilot' || !drafts.localApiKey}
+                className={fieldClasses.iconButton}
+                onClick={() => {
+                  if (!drafts.localApiKey) {
+                    return
+                  }
+                  void navigator.clipboard.writeText(drafts.localApiKey)
+                }}>
+                <Copy size={12} />
+              </button>
+            </span>
+          </Tooltip>
+        </div>
       </ProviderField>
     </ProviderSection>
   )

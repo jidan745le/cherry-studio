@@ -143,7 +143,12 @@ const CherryINOAuth: FC<CherryINOAuthProps> = ({ providerId }) => {
     if (!hasKeys) {
       // Case 1: No API key - show login button
       return (
-        <Button type="primary" shape="round" icon={<LogIn size={16} />} onClick={handleOAuthLogin}>
+        <Button
+          type="primary"
+          shape="round"
+          className="!h-auto !rounded-lg !px-3 !py-[6px] !text-[13px]"
+          icon={<LogIn size={14} />}
+          onClick={handleOAuthLogin}>
           {t('auth.login')}
         </Button>
       )
@@ -158,7 +163,12 @@ const CherryINOAuth: FC<CherryINOAuthProps> = ({ providerId }) => {
       // Case 3: Has API key but no OAuth token (legacy manual key)
       // Show button to connect OAuth for better experience
       return (
-        <Button type="primary" shape="round" icon={<LogIn size={16} />} onClick={handleOAuthLogin}>
+        <Button
+          type="primary"
+          shape="round"
+          className="!h-auto !rounded-lg !px-3 !py-[6px] !text-[13px]"
+          icon={<LogIn size={14} />}
+          onClick={handleOAuthLogin}>
           {t('auth.login')}
         </Button>
       )
@@ -213,8 +223,8 @@ const Container = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  padding: 20px;
+  gap: 12px;
+  padding: 12px 0 8px;
 `
 
 const LogoutCorner = styled.button`
@@ -256,7 +266,7 @@ const ProviderLogoWrapper = styled.div`
 const ButtonRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 `
 
 const BalanceCapsule = styled.button`
@@ -264,11 +274,11 @@ const BalanceCapsule = styled.button`
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 15px;
-  min-width: 110px;
-  height: 32px;
+  padding: 0 12px;
+  min-width: 100px;
+  height: 30px;
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--color-background-soft);
   cursor: pointer;
   transition: all 0.2s;
@@ -297,16 +307,22 @@ const BalanceCapsule = styled.button`
 `
 
 const TopupButton = styled(Button)`
-  min-width: 110px;
+  min-width: 100px;
+  height: auto !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
 `
 
 const BalanceLabel = styled.span`
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.35;
   color: var(--color-text-3);
 `
 
 const BalanceValue = styled.span`
   font-size: 13px;
+  line-height: 1.35;
   font-weight: 600;
   color: var(--color-text-1);
   display: flex;
@@ -315,7 +331,8 @@ const BalanceValue = styled.span`
 `
 
 const Description = styled.div`
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.35;
   color: var(--color-text-2);
   display: flex;
   align-items: center;

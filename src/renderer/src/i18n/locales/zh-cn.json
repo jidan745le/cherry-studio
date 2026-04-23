@@ -5253,7 +5253,10 @@
       "api_host_preview": "预览：{{url}}",
       "api_host_tooltip": "仅在服务商需要自定义的 OpenAI 兼容地址时覆盖。",
       "api_key": {
+        "copy": "复制 API 密钥",
+        "hide_key": "隐藏 API 密钥",
         "label": "API 密钥",
+        "show_key": "显示 API 密钥",
         "tip": "多个密钥使用逗号分隔"
       },
       "api_version": "API 版本",
