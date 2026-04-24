@@ -1,99 +1,89 @@
-import { InputGroup, InputGroupAddon, InputGroupInput, Tooltip, WarnTooltip } from '@cherrystudio/ui'
-import { Copy, Eye, EyeOff } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ApiKeyListPopup } from '@renderer/components/Popups/ApiKeyListPopup'
+import { useProvider } from '@renderer/hooks/useProviders'
+import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { UseProviderSettingResult } from '../hooks/useProviderSetting'
-import ProviderField from './ProviderField'
-import ProviderSection from './ProviderSection'
-import { fieldClasses } from './ProviderSettingsPrimitives'
+import { useProviderApiKey } from '../hooks/providerSetting/useProviderApiKey'
+import { useProviderConnectionCheck } from '../hooks/providerSetting/useProviderConnectionCheck'
+import { useProviderEndpoints } from '../hooks/providerSetting/useProviderEndpoints'
+import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
+import ApiActions from './ApiActions'
+import ApiHost from './ApiHost'
+import ApiKey from './ApiKey'
+import ProviderBlockHeading from './ProviderBlockHeading'
+import ProviderSpecificSettings from './ProviderSpecificSettings'
 
 interface AuthenticationSectionProps {
-  viewModel: UseProviderSettingResult
+  providerId: string
 }
 
-export default function AuthenticationSection({ viewModel }: AuthenticationSectionProps) {
+/**
+ * AuthenticationSection is the nearest real shared owner for connection/auth drafts:
+ * it owns the small amount of section-local wiring needed to coordinate API key drafts,
+ * endpoint drafts, and check/open actions without leaking them back to the page shell.
+ */
+export default function AuthenticationSection({ providerId }: AuthenticationSectionProps) {
   const { t } = useTranslation()
-  const { provider, drafts, computed, status, actions } = viewModel
-  const [showApiKey, setShowApiKey] = useState(false)
+  const { provider } = useProvider(providerId)
+  const meta = useProviderMeta(providerId)
+  const apiKey = useProviderApiKey(providerId)
+  const endpoints = useProviderEndpoints(provider)
 
-  useEffect(() => {
-    setShowApiKey(false)
-  }, [provider?.id])
+  const openApiKeyList = useCallback(async () => {
+    if (!provider) {
+      return
+    }
 
-  if (!provider || !computed.isApiKeyFieldVisible) {
+    await apiKey.commitInputApiKeyNow()
+
+    await ApiKeyListPopup.show({
+      providerId: provider.id,
+      title: `${meta.fancyProviderName} ${t('settings.provider.api.key.list.title')}`,
+      providerType: 'llm'
+    })
+  }, [apiKey, meta.fancyProviderName, provider, t])
+
+  const connectionCheck = useProviderConnectionCheck(providerId, {
+    inputApiKey: apiKey.inputApiKey,
+    apiHost: endpoints.apiHost,
+    openApiKeyList
+  })
+
+  if (!provider) {
     return null
   }
 
   return (
-    <ProviderSection>
-      <ProviderField
-        className="space-y-2.5"
-        title={t('settings.provider.api_key.label')}
-        action={
-          computed.apiKeyWebsite && !computed.isDmxapi ? (
-            <a
-              href={computed.apiKeyWebsite}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 text-(--color-primary) text-[12px] leading-[1.35] hover:underline">
-              {t('settings.provider.get_api_key')}
-            </a>
-          ) : undefined
-        }>
-        <div className={fieldClasses.inputRow}>
-          <InputGroup className={fieldClasses.inputGroup}>
-            <InputGroupInput
-              type={showApiKey ? 'text' : 'password'}
-              className={fieldClasses.input}
-              value={drafts.localApiKey}
-              placeholder={t('settings.provider.api_key.label')}
-              onChange={(event) => drafts.setLocalApiKey(event.target.value)}
-              autoFocus={provider.isEnabled && !computed.providerApiKey}
-              disabled={provider.id === 'copilot' || !computed.isApiKeyInlineEditable}
-            />
-            {provider.id !== 'copilot' && (
-              <InputGroupAddon align="inline-end">
-                <Tooltip
-                  content={
-                    showApiKey ? t('settings.provider.api_key.hide_key') : t('settings.provider.api_key.show_key')
-                  }>
-                  <button
-                    type="button"
-                    className={fieldClasses.apiKeyVisibilityToggle}
-                    onClick={() => setShowApiKey((v) => !v)}>
-                    {showApiKey ? <EyeOff size={12} /> : <Eye size={12} />}
-                  </button>
-                </Tooltip>
-              </InputGroupAddon>
-            )}
-            {status.apiKeyConnectivity.status === 'failed' && !status.apiKeyConnectivity.checking && (
-              <InputGroupAddon align="inline-end">
-                <WarnTooltip
-                  content={status.apiKeyConnectivity.error?.message || t('settings.models.check.failed')}
-                  onClick={actions.showApiKeyError}
-                />
-              </InputGroupAddon>
-            )}
-          </InputGroup>
-          <Tooltip content={t('settings.provider.api_key.copy')}>
-            <span className="inline-flex">
-              <button
-                type="button"
-                disabled={provider.id === 'copilot' || !drafts.localApiKey}
-                className={fieldClasses.iconButton}
-                onClick={() => {
-                  if (!drafts.localApiKey) {
-                    return
-                  }
-                  void navigator.clipboard.writeText(drafts.localApiKey)
-                }}>
-                <Copy size={12} />
-              </button>
-            </span>
-          </Tooltip>
-        </div>
-      </ProviderField>
-    </ProviderSection>
+    <section className="shrink-0 space-y-2.5" aria-label="provider-connection-sections">
+      <ProviderBlockHeading>连接认证 (Authentication)</ProviderBlockHeading>
+      <ProviderSpecificSettings providerId={provider.id} placement="beforeAuth" />
+      <ApiKey
+        provider={provider}
+        inputApiKey={apiKey.inputApiKey}
+        setInputApiKey={apiKey.setInputApiKey}
+        serverApiKey={apiKey.serverApiKey}
+        isApiKeyFieldVisible={meta.isApiKeyFieldVisible}
+        apiKeyWebsite={meta.apiKeyWebsite}
+        isDmxapi={meta.isDmxapi}
+        apiKeyConnectivity={connectionCheck.apiKeyConnectivity}
+        onShowApiKeyError={connectionCheck.showApiKeyError}
+      />
+      <ApiHost
+        providerId={providerId}
+        primaryEndpoint={endpoints.primaryEndpoint}
+        apiHost={endpoints.apiHost}
+        setApiHost={endpoints.setApiHost}
+        anthropicApiHost={endpoints.anthropicApiHost}
+        setAnthropicApiHost={endpoints.setAnthropicApiHost}
+        apiVersion={endpoints.apiVersion}
+        setApiVersion={endpoints.setApiVersion}
+      />
+      <ApiActions
+        showApiKeyListButton={meta.isApiKeyFieldVisible && provider.id !== 'copilot'}
+        onCheckConnection={() => void connectionCheck.checkApi()}
+        onOpenApiKeyList={() => void openApiKeyList()}
+      />
+      <ProviderSpecificSettings providerId={provider.id} placement="afterAuth" />
+    </section>
   )
 }

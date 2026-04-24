@@ -1,5 +1,5 @@
 import OpenAIAlert from '@renderer/components/Alert/OpenAIAlert'
-import AnthropicSettings from '@renderer/pages/settings/ProviderSettings/AnthropicSettings'
+import { useProvider } from '@renderer/hooks/useProviders'
 import AwsBedrockSettings from '@renderer/pages/settings/ProviderSettings/AwsBedrockSettings'
 import CherryINOAuth from '@renderer/pages/settings/ProviderSettings/CherryINOAuth'
 import DMXAPISettings from '@renderer/pages/settings/ProviderSettings/DMXAPISettings'
@@ -10,66 +10,107 @@ import OVMSSettings from '@renderer/pages/settings/ProviderSettings/OVMSSettings
 import ProviderOAuth from '@renderer/pages/settings/ProviderSettings/ProviderOAuth'
 import VertexAISettings from '@renderer/pages/settings/ProviderSettings/VertexAISettings'
 import { isProviderSupportAuth } from '@renderer/services/ProviderService'
-import { useTranslation } from 'react-i18next'
+import type { Provider } from '@shared/data/types/provider'
+import { Fragment, type ReactNode } from 'react'
 
-import type { UseProviderSettingResult } from '../hooks/useProviderSetting'
-import InlineSelector from './InlineSelector'
-import ProviderField from './ProviderField'
-import ProviderSection from './ProviderSection'
+import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
+import AnthropicAuthSection from './AnthropicAuthSection'
+
+export type ProviderSpecificPlacement = 'beforeAuth' | 'afterAuth'
 
 interface ProviderSpecificSettingsProps {
-  viewModel: UseProviderSettingResult
-  placement: 'before' | 'after'
+  providerId: string
+  placement: ProviderSpecificPlacement
 }
 
-export default function ProviderSpecificSettings({ viewModel, placement }: ProviderSpecificSettingsProps) {
-  const { t } = useTranslation()
-  const { provider, computed, actions } = viewModel
+type ProviderSpecificContext = {
+  provider: Provider
+  meta: ReturnType<typeof useProviderMeta>
+}
+
+type ProviderSpecificRegistryEntry = {
+  key: string
+  when: (context: ProviderSpecificContext) => boolean
+  render: (providerId: string) => ReactNode
+}
+
+const PROVIDER_SPECIFIC_SETTINGS_REGISTRY: Record<ProviderSpecificPlacement, ProviderSpecificRegistryEntry[]> = {
+  beforeAuth: [
+    {
+      key: 'oauth',
+      when: ({ provider }) => isProviderSupportAuth(provider),
+      render: (providerId) => <ProviderOAuth providerId={providerId} />
+    },
+    {
+      key: 'cherryin-oauth',
+      when: ({ meta }) => meta.isCherryIN,
+      render: (providerId) => <CherryINOAuth providerId={providerId} />
+    },
+    {
+      key: 'openai-alert',
+      when: ({ provider }) => provider.id === 'openai',
+      render: () => <OpenAIAlert />
+    },
+    {
+      key: 'ovms-settings',
+      when: ({ provider }) => provider.id === 'ovms',
+      render: () => <OVMSSettings />
+    },
+    {
+      key: 'dmxapi-settings',
+      when: ({ meta }) => meta.isDmxapi,
+      render: (providerId) => <DMXAPISettings providerId={providerId} />
+    },
+    {
+      key: 'anthropic-auth',
+      when: ({ provider }) => provider.id === 'anthropic',
+      render: (providerId) => <AnthropicAuthSection providerId={providerId} />
+    }
+  ],
+  afterAuth: [
+    {
+      key: 'lmstudio-settings',
+      when: ({ provider }) => provider.id === 'lmstudio',
+      render: (providerId) => <LMStudioSettings providerId={providerId} />
+    },
+    {
+      key: 'gpustack-settings',
+      when: ({ provider }) => provider.id === 'gpustack',
+      render: (providerId) => <GPUStackSettings providerId={providerId} />
+    },
+    {
+      key: 'copilot-settings',
+      when: ({ provider }) => provider.id === 'copilot',
+      render: (providerId) => <GithubCopilotSettings providerId={providerId} />
+    },
+    {
+      key: 'aws-bedrock-settings',
+      when: ({ provider }) => provider.id === 'aws-bedrock',
+      render: (providerId) => <AwsBedrockSettings providerId={providerId} />
+    },
+    {
+      key: 'vertexai-settings',
+      when: ({ provider }) => provider.id === 'vertexai',
+      render: (providerId) => <VertexAISettings providerId={providerId} />
+    }
+  ]
+}
+
+export default function ProviderSpecificSettings({ providerId, placement }: ProviderSpecificSettingsProps) {
+  const { provider } = useProvider(providerId)
+  const meta = useProviderMeta(providerId)
 
   if (!provider) {
     return null
   }
 
-  if (placement === 'before') {
-    return (
-      <>
-        {isProviderSupportAuth(provider) && <ProviderOAuth providerId={provider.id} />}
-        {computed.isCherryIN && <CherryINOAuth providerId={provider.id} />}
-        {provider.id === 'openai' && <OpenAIAlert />}
-        {provider.id === 'ovms' && <OVMSSettings />}
-        {computed.isDmxapi && <DMXAPISettings providerId={provider.id} />}
-        {provider.id === 'anthropic' && (
-          <ProviderSection>
-            <ProviderField title={t('settings.provider.anthropic.auth_method')}>
-              <div className="w-[220px]">
-                <InlineSelector
-                  value={provider.authType || 'api-key'}
-                  onChange={(value) => void actions.patchProvider({ authConfig: { type: value } })}
-                  options={[
-                    { value: 'api-key', label: t('settings.provider.anthropic.apikey') },
-                    { value: 'oauth', label: t('settings.provider.anthropic.oauth') }
-                  ]}
-                />
-              </div>
-              {provider.authType === 'oauth' && (
-                <div className="mt-4">
-                  <AnthropicSettings />
-                </div>
-              )}
-            </ProviderField>
-          </ProviderSection>
-        )}
-      </>
-    )
-  }
-
   return (
     <>
-      {provider.id === 'lmstudio' && <LMStudioSettings providerId={provider.id} />}
-      {provider.id === 'gpustack' && <GPUStackSettings providerId={provider.id} />}
-      {provider.id === 'copilot' && <GithubCopilotSettings providerId={provider.id} />}
-      {provider.id === 'aws-bedrock' && <AwsBedrockSettings providerId={provider.id} />}
-      {provider.id === 'vertexai' && <VertexAISettings providerId={provider.id} />}
+      {PROVIDER_SPECIFIC_SETTINGS_REGISTRY[placement]
+        .filter((entry) => entry.when({ provider, meta }))
+        .map((entry) => (
+          <Fragment key={entry.key}>{entry.render(provider.id)}</Fragment>
+        ))}
     </>
   )
 }

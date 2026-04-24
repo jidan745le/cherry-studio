@@ -2,23 +2,20 @@ import { Switch } from '@cherrystudio/ui'
 import { ProviderAvatar } from '@renderer/components/ProviderAvatar'
 import { useTranslation } from 'react-i18next'
 
+import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
+
 interface ProviderHeaderProps {
   provider: {
     id: string
     name: string
     isEnabled: boolean
   }
-  name: string
-  officialWebsite?: string
-  docsWebsite?: string
-  showApiOptionsButton: boolean
-  onOpenApiOptions: () => void
-  enabled: boolean
   onEnabledChange: (enabled: boolean) => void
 }
 
-export default function ProviderHeader({ provider, name, docsWebsite, enabled, onEnabledChange }: ProviderHeaderProps) {
+export default function ProviderHeader({ provider, onEnabledChange }: ProviderHeaderProps) {
   const { t } = useTranslation()
+  const meta = useProviderMeta(provider.id)
 
   return (
     <div className="flex items-center gap-3">
@@ -26,21 +23,23 @@ export default function ProviderHeader({ provider, name, docsWebsite, enabled, o
         <ProviderAvatar provider={provider} size={32} className="shrink-0 rounded-xl" />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="truncate font-semibold text-[16px] text-(--color-foreground) leading-[1.25]">{name}</h1>
-            {docsWebsite && (
+            <h1 className="truncate font-semibold text-(--color-foreground) text-[16px] leading-[1.25]">
+              {meta.fancyProviderName}
+            </h1>
+            {meta.docsWebsite && (
               <a
-                href={docsWebsite}
+                href={meta.docsWebsite}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[13px] text-(--color-primary) transition-colors hover:opacity-80">
+                className="text-(--color-primary) text-[13px] transition-colors hover:opacity-80">
                 {t('common.docs')}
               </a>
             )}
           </div>
-          <p className="mt-0.5 text-[13px] text-(--color-muted-foreground) leading-[1.35]">{provider.id}</p>
+          <p className="mt-0.5 text-(--color-muted-foreground) text-[13px] leading-[1.35]">{provider.id}</p>
         </div>
       </div>
-      <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+      <Switch checked={provider.isEnabled} onCheckedChange={onEnabledChange} />
     </div>
   )
 }
