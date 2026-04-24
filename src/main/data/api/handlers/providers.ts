@@ -107,6 +107,12 @@ export const providerHandlers: {
     }
   },
 
+  '/providers/:providerId/preset-metadata': {
+    GET: async ({ params }) => {
+      return await providerRegistryService.getProviderPresetMetadata(params.providerId)
+    }
+  },
+
   '/providers/:providerId/api-keys/:keyId': {
     PATCH: async ({ params, body }) => {
       const UpdateApiKeySchema = z.object({

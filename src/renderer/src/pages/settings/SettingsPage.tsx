@@ -177,7 +177,10 @@ const ContentContainer = styled.div`
 const SettingMenus = styled(Scrollbar)`
   display: flex;
   flex-direction: column;
+  width: var(--settings-width);
+  flex: 0 0 var(--settings-width);
   min-width: var(--settings-width);
+  max-width: var(--settings-width);
   min-height: 0;
   border-right: 0.5px solid var(--color-border);
   padding: 10px;
@@ -188,6 +191,7 @@ const SettingContent = styled.div`
   display: flex;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   flex: 1;
 `
 

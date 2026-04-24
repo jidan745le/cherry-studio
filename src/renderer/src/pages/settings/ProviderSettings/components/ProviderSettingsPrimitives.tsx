@@ -2,6 +2,23 @@ import { cn } from '@renderer/utils'
 import type { ThemeMode } from '@shared/data/preference/preferenceTypes'
 import type { ReactNode } from 'react'
 
+/**
+ * Provider settings — design alignment (scoped theme + composition)
+ *
+ * **Shell** — `ProviderSetting.tsx` wraps the detail column in `.provider-settings-default-scope`. Everything
+ * that must follow the provider-settings mock must stay in that subtree so tokens and `--color-*` bridge apply.
+ *
+ * **Two layers**
+ * - **CSS** — `assets/styles/tailwind-default-scope.css`: atomic vars only (`--font-size-*`, `--space-*`, soft
+ *   surfaces, `--color-*` → shadcn/Tailwind). No screen- or feature-prefixed names. When mock px hurts a11y /
+ *   readability, prefer named steps and note the tradeoff in a CSS comment.
+ * - **TS (this file)** — merge atoms into `actionClasses`, `fieldClasses`, `modelListClasses`, `apiKeyListClasses`.
+ *   Use `var(--*)` in class strings; avoid scattered `text-[Npx]` and inline `fontWeight` styles.
+ *
+ * **Rules (short)** — Do not satisfy this page by editing global `:root` unless product wants a global change.
+ * Figma “infinite” radius exports → `rounded-full` in UI. Secondary actions: `btnNeutral`, not brand primary fill,
+ * unless the spec demands emphasis. Execution order: scope vars + bridge in CSS → extend `*Classes` → touch TSX.
+ */
 export const providerSettingsTypography = {
   menu: 'text-[length:var(--font-size-body-sm)] leading-[length:var(--line-height-body-sm)]',
   body: 'text-[length:var(--font-size-body-sm)] leading-[length:var(--line-height-body-sm)]',
@@ -42,11 +59,11 @@ const modelListCategoryChipBase =
 
 /** Model list block; composes atomic tokens from `tailwind-default-scope.css` under `.provider-settings-default-scope`. */
 export const modelListClasses = {
-  section: 'space-y-[length:var(--space-stack-sm)]',
-  headerBlock: 'flex flex-col gap-[length:var(--space-stack-xs)]',
-  titleRow: 'flex items-center justify-between gap-3',
+  section: 'flex h-full min-h-0 min-w-0 w-full flex-1 flex-col gap-[length:var(--space-stack-sm)]',
+  headerBlock: 'flex min-h-0 min-w-0 w-full flex-1 flex-col gap-[length:var(--space-stack-xs)]',
+  titleRow: 'flex min-w-0 w-full flex-wrap items-center justify-between gap-3',
   titleWrap: 'flex min-w-0 items-baseline gap-[length:var(--space-inline-md)]',
-  titleActions: 'flex flex-wrap items-center gap-[length:var(--space-inline-xs)]',
+  titleActions: 'flex max-w-full flex-wrap items-center gap-[length:var(--space-inline-xs)]',
   /** 模型列表区块标题：同字号/行高/色，字重 `--font-weight-semibold`（600） */
   sectionTitle: cn(sectionHeadingBase, 'font-[weight:var(--font-weight-semibold)]'),
   countMeta:
@@ -58,8 +75,8 @@ export const modelListClasses = {
     'h-auto min-h-0 rounded-[length:var(--radius-4xs)] px-[length:var(--padding-x-control-compact)] py-[length:var(--padding-y-control-compact)] text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground',
   toolbarIcon: 'size-[length:var(--icon-size-caption)] shrink-0',
   toolbarHeaderIcon: 'size-[length:var(--icon-size-body-xs)] shrink-0',
-  searchRow: 'flex items-center gap-2',
-  searchActions: 'flex shrink-0 items-center gap-2',
+  searchRow: 'flex min-w-0 w-full flex-wrap items-center gap-2',
+  searchActions: 'flex max-w-full shrink-0 flex-wrap items-center gap-2',
   searchWrap:
     'flex flex-1 items-center gap-1.5 rounded-lg border border-[color:var(--color-border-fg-hairline)] bg-[var(--color-surface-fg-sunken)] px-2.5 py-[5px]',
   searchIcon: 'size-[length:var(--icon-size-caption)] shrink-0 text-foreground/55',
@@ -74,17 +91,18 @@ export const modelListClasses = {
   ),
   addIconButton:
     'size-8 rounded-lg border-[color:var(--color-border-fg-muted)] bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground',
-  chipRow: 'flex flex-wrap items-center gap-[5px]',
+  chipRow: 'flex min-w-0 w-full flex-wrap items-center gap-[5px]',
   chipActive: cn(
     modelListCategoryChipBase,
-    'border-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] bg-[var(--color-surface-fg-muted)] text-foreground/85'
+    'min-w-0 max-w-full border-[color:color-mix(in_srgb,var(--foreground)_15%,transparent)] bg-[var(--color-surface-fg-muted)] text-foreground/85'
   ),
   chipIdle: cn(
     modelListCategoryChipBase,
-    'border-[color:var(--color-border-fg-muted)] bg-transparent text-foreground/65 hover:border-[color:color-mix(in_srgb,var(--foreground)_20%,transparent)] hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground/80'
+    'min-w-0 max-w-full border-[color:var(--color-border-fg-muted)] bg-transparent text-foreground/65 hover:border-[color:color-mix(in_srgb,var(--foreground)_20%,transparent)] hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground/80'
   ),
-  chipLabel: 'text-[length:var(--font-size-chip-label)] leading-[var(--line-height-caption)]',
-  chipCount: 'text-[length:var(--font-size-chip-count)] leading-[var(--line-height-body-xs)] opacity-70 tabular-nums',
+  chipLabel: 'min-w-0 truncate text-[length:var(--font-size-chip-label)] leading-[var(--line-height-caption)]',
+  chipCount:
+    'shrink-0 text-[length:var(--font-size-chip-count)] leading-[var(--line-height-body-xs)] opacity-70 tabular-nums',
   subsectionRow: 'flex items-center gap-2 px-3 py-[4px]',
   subsectionRule: 'h-px flex-1 bg-foreground/[0.08]',
   subsectionTitleEnabled:
@@ -98,11 +116,11 @@ export const modelListClasses = {
   emptyState:
     'flex min-h-40 items-center justify-center rounded-2xl border border-(--color-border) border-dashed bg-[var(--color-surface-fg-sunken)] px-4 text-center text-[length:var(--font-size-body-md)] leading-[var(--line-height-body-md)] text-(--color-muted-foreground)',
   listScroller:
-    '-mx-1 max-h-[length:var(--max-height-scroll-sm)] overflow-y-auto [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[2px]',
-  groupShell: 'group [&_.ant-collapse-content-box]:!p-0',
+    '-mx-1 min-h-0 min-w-0 w-full flex-1 overflow-x-hidden overflow-y-auto pr-1 [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[2px]',
+  groupShell: 'min-w-0 w-full group [&_.ant-collapse-content-box]:!p-0',
   groupHeaderLabel: 'flex min-w-0 flex-1 items-center gap-2 overflow-hidden',
   groupTitle:
-    'shrink-0 text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/78 font-[weight:var(--font-weight-medium)]',
+    'min-w-0 flex-shrink truncate text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/78 font-[weight:var(--font-weight-medium)]',
   groupHeaderRule: 'h-px flex-1 bg-foreground/[0.06]',
   groupCount:
     'shrink-0 text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/58 tabular-nums',
@@ -112,10 +130,10 @@ export const modelListClasses = {
   rowMain: 'min-w-0 flex-1 items-start gap-3',
   rowAvatar: 'h-[26px] w-[26px] shrink-0 rounded-lg',
   rowBody: 'min-w-0 max-w-full flex-1 overflow-hidden',
-  rowBadges: 'mt-1 flex min-h-[18px] min-w-0 items-center gap-1.5 overflow-hidden',
+  rowBadges: 'mt-1 flex min-h-[18px] min-w-0 max-w-full flex-wrap items-center gap-1.5',
   rowMeta:
     'mt-[3px] block min-w-0 max-w-full truncate text-[length:var(--font-size-body-xs)] leading-[var(--line-height-body-xs)] text-foreground/65',
-  rowActions: 'shrink-0 items-center gap-1.5 self-center',
+  rowActions: 'min-w-0 shrink-0 items-center gap-1.5 self-center',
   rowIconButton:
     'size-7 rounded-lg border border-[color:var(--color-border-fg-muted)] bg-transparent text-muted-foreground/70 shadow-none hover:bg-[var(--color-surface-fg-subtle)] hover:text-foreground'
 } as const
@@ -184,7 +202,7 @@ export function ProviderSettingsContainer({
   return (
     <div
       className={cn(
-        'flex flex-1 flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'flex min-w-0 flex-1 flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         theme === 'dark' ? 'bg-(--color-background)' : 'bg-(--color-background)',
         className
       )}>

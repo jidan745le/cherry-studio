@@ -13,7 +13,8 @@ import type {
   AuthConfig,
   EndpointConfig,
   Provider,
-  ProviderSettings
+  ProviderSettings,
+  ProviderWebsites
 } from '../../types/provider'
 import type { OrderEndpoints } from './_endpointHelpers'
 import type { EnrichModelsDto } from './models'
@@ -61,6 +62,10 @@ export interface UpdateApiKeyDto {
   key?: string
   label?: string
   isEnabled?: boolean
+}
+
+export interface ProviderPresetMetadata {
+  websites?: ProviderWebsites
 }
 
 /**
@@ -170,6 +175,20 @@ export type ProviderSchemas = {
     GET: {
       params: { providerId: string }
       response: AuthConfig | null
+    }
+  }
+
+  /**
+   * Read-only preset metadata for a provider.
+   * Returns registry-backed display metadata such as website links without
+   * changing the runtime Provider entity contract.
+   * @example GET /providers/openai/preset-metadata
+   * @example GET /providers/openai-main/preset-metadata
+   */
+  '/providers/:providerId/preset-metadata': {
+    GET: {
+      params: { providerId: string }
+      response: ProviderPresetMetadata
     }
   }
 

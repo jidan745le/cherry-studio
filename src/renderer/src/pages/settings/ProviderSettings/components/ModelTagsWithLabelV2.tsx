@@ -92,10 +92,10 @@ const Container = styled.div`
   flex-direction: row;
   align-items: center;
   gap: 4px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
   &::-webkit-scrollbar {
     display: none;
   }

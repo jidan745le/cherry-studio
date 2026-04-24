@@ -6,7 +6,7 @@ import { useProviders } from '@renderer/hooks/useProviders'
 import type { ProviderType } from '@renderer/types'
 import { maskApiKey } from '@renderer/utils'
 import { getFancyProviderName } from '@renderer/utils/provider.v2'
-import { ENDPOINT_TYPE } from '@shared/data/types/model'
+import { getProviderHostTopology } from '@renderer/utils/providerTopology'
 import { Descriptions, Modal } from 'antd'
 import { Eye, EyeOff } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -47,8 +47,7 @@ const PopupContainer = ({ id, apiKey: newApiKey, baseUrl, type, name, resolve }:
   const providers = useMemo(() => (Array.isArray(rawProviders) ? rawProviders : []), [rawProviders])
 
   const foundProvider = providers.find((p) => p.id === id)
-  const defaultEndpoint = foundProvider?.defaultChatEndpoint ?? ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS
-  const existingApiHost = foundProvider?.endpointConfigs?.[defaultEndpoint]?.baseUrl ?? ''
+  const existingApiHost = getProviderHostTopology(foundProvider).primaryBaseUrl
   const { data: apiKeysData } = useQuery('/providers/:providerId/api-keys', {
     params: { providerId: id },
     enabled: foundProvider !== undefined

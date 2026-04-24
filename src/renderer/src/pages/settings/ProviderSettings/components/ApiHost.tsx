@@ -1,9 +1,16 @@
 import { HelpTooltip, InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Tooltip } from '@cherrystudio/ui'
+import { useProvider, useProviderMutations } from '@renderer/hooks/useProviders'
 import CherryINSettings from '@renderer/pages/settings/ProviderSettings/CherryINSettings'
+import CustomHeaderPopup from '@renderer/pages/settings/ProviderSettings/CustomHeaderPopup'
+import { getProviderHostTopology } from '@renderer/utils/providerTopology'
+import { ENDPOINT_TYPE, type EndpointType } from '@shared/data/types/model'
 import { Settings2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import type { UseProviderSettingResult } from '../hooks/useProviderSetting'
+import { useProviderEndpointActions } from '../hooks/providerSetting/useProviderEndpointActions'
+import { useProviderHostPreview } from '../hooks/providerSetting/useProviderHostPreview'
+import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
+import { useProviderModelSync } from '../hooks/useProviderModelSync'
 import ProviderField from './ProviderField'
 import ProviderSection from './ProviderSection'
 import { fieldClasses } from './ProviderSettingsPrimitives'
@@ -42,22 +49,63 @@ function AzureApiVersionField({
   )
 }
 
-interface ConnectionSectionProps {
-  viewModel: UseProviderSettingResult
-  onOpenCustomHeaders: () => void
+interface ApiHostProps {
+  providerId: string
+  primaryEndpoint: EndpointType
+  apiHost: string
+  setApiHost: (value: string) => void
+  anthropicApiHost: string
+  setAnthropicApiHost: (value: string) => void
+  apiVersion: string
+  setApiVersion: (value: string) => void
 }
 
-export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: ConnectionSectionProps) {
+export default function ApiHost({
+  providerId,
+  primaryEndpoint,
+  apiHost,
+  setApiHost,
+  anthropicApiHost,
+  setAnthropicApiHost,
+  apiVersion,
+  setApiVersion
+}: ApiHostProps) {
   const { t } = useTranslation()
-  const { provider, drafts, computed, actions } = viewModel
+  const { provider } = useProvider(providerId)
+  const { updateProvider } = useProviderMutations(providerId)
+  const meta = useProviderMeta(providerId)
+  const { syncProviderModels } = useProviderModelSync(providerId)
+  const topology = getProviderHostTopology(provider)
+  const isAnthropicPrimaryEndpoint = primaryEndpoint === ENDPOINT_TYPE.ANTHROPIC_MESSAGES
+  const hostPreview = useProviderHostPreview({
+    provider,
+    apiHost,
+    anthropicApiHost
+  })
+  const endpointActions = useProviderEndpointActions({
+    provider,
+    primaryEndpoint: topology.primaryEndpoint,
+    apiHost,
+    setApiHost,
+    providerApiHost: topology.primaryBaseUrl,
+    anthropicApiHost,
+    setAnthropicApiHost,
+    apiVersion,
+    patchProvider: updateProvider,
+    syncProviderModels
+  })
 
-  if (!provider || !computed.isConnectionFieldVisible) {
-    return computed.isAzureOpenAI ? (
+  if (!provider) {
+    return null
+  }
+
+  if (!meta.isConnectionFieldVisible) {
+    return meta.isAzureOpenAI ? (
       <ProviderSection>
         <AzureApiVersionField
-          apiVersion={drafts.apiVersion}
-          onApiVersionChange={drafts.setApiVersion}
-          onApiVersionCommit={actions.commitApiVersion}
+          apiVersion={apiVersion}
+          onApiVersionChange={setApiVersion}
+          onApiVersionCommit={endpointActions.commitApiVersion}
         />
       </ProviderSection>
     ) : null
@@ -69,7 +117,7 @@ export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: Co
         title={
           <div className="flex items-center gap-1">
             <span>
-              {drafts.activeHostField === 'anthropicApiHost'
+              {isAnthropicPrimaryEndpoint
                 ? t('settings.provider.anthropic_api_host')
                 : `${t('settings.provider.api_host')} (Endpoint URL)`}
             </span>
@@ -77,7 +125,7 @@ export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: Co
           </div>
         }
         help={
-          drafts.activeHostField === 'apiHost' ? (
+          !isAnthropicPrimaryEndpoint ? (
             <div className="space-y-1 pt-1">
               {provider.id === 'vertexai' && (
                 <div className="text-[12px] text-foreground/55 leading-[1.35]">
@@ -85,37 +133,37 @@ export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: Co
                 </div>
               )}
               <div className="break-all text-[12px] text-foreground/55 leading-[1.35]">
-                {t('settings.provider.api_host_preview', { url: computed.hostPreview })}
+                {t('settings.provider.api_host_preview', { url: hostPreview.hostPreview })}
               </div>
             </div>
           ) : (
             <div className="break-all pt-1 text-[12px] text-foreground/55 leading-[1.35]">
               {t('settings.provider.anthropic_api_host_preview', {
-                url: computed.anthropicHostPreview || '—'
+                url: hostPreview.anthropicHostPreview || '—'
               })}
             </div>
           )
         }>
-        {drafts.activeHostField === 'apiHost' ? (
-          computed.isCherryIN && computed.isChineseUser ? (
+        {!isAnthropicPrimaryEndpoint ? (
+          meta.isCherryIN && meta.isChineseUser ? (
             <CherryINSettings providerId={provider.id} />
           ) : (
             <div className={fieldClasses.inputRow}>
               <InputGroup className={fieldClasses.inputGroup}>
                 <InputGroupInput
                   className={fieldClasses.input}
-                  value={drafts.apiHost}
+                  value={apiHost}
                   placeholder={t('settings.provider.api_host')}
-                  onChange={(event) => drafts.setApiHost(event.target.value)}
-                  onBlur={actions.commitApiHost}
+                  onChange={(event) => setApiHost(event.target.value)}
+                  onBlur={endpointActions.commitApiHost}
                 />
-                {computed.isApiHostResettable && (
+                {hostPreview.isApiHostResettable && (
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton
                       variant="destructive"
                       size="sm"
                       className="rounded-lg text-[12px]"
-                      onClick={actions.resetApiHost}>
+                      onClick={endpointActions.resetApiHost}>
                       {t('settings.provider.api.url.reset')}
                     </InputGroupButton>
                   </InputGroupAddon>
@@ -123,7 +171,10 @@ export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: Co
               </InputGroup>
               <Tooltip content={t('settings.provider.copilot.custom_headers')}>
                 <span className={fieldClasses.inputRowEndSlot}>
-                  <button type="button" className={fieldClasses.iconButton} onClick={onOpenCustomHeaders}>
+                  <button
+                    type="button"
+                    className={fieldClasses.iconButton}
+                    onClick={() => void CustomHeaderPopup.show({ providerId })}>
                     <Settings2 size={12} />
                   </button>
                 </span>
@@ -131,26 +182,23 @@ export default function ConnectionSection({ viewModel, onOpenCustomHeaders }: Co
             </div>
           )
         ) : (
-          <div className={fieldClasses.inputRow}>
-            <InputGroup className={fieldClasses.inputGroup}>
-              <InputGroupInput
-                className={fieldClasses.input}
-                value={drafts.anthropicApiHost}
-                placeholder={t('settings.provider.anthropic_api_host')}
-                onChange={(event) => drafts.setAnthropicApiHost(event.target.value)}
-                onBlur={actions.commitAnthropicApiHost}
-              />
-            </InputGroup>
-            <span className={fieldClasses.inputRowEndSlot} aria-hidden />
-          </div>
+          <InputGroup className={fieldClasses.inputGroupBlock}>
+            <InputGroupInput
+              className={fieldClasses.input}
+              value={anthropicApiHost}
+              placeholder={t('settings.provider.anthropic_api_host')}
+              onChange={(event) => setAnthropicApiHost(event.target.value)}
+              onBlur={endpointActions.commitAnthropicApiHost}
+            />
+          </InputGroup>
         )}
       </ProviderField>
-      {computed.isAzureOpenAI && (
+      {meta.isAzureOpenAI && (
         <AzureApiVersionField
           className="mt-4"
-          apiVersion={drafts.apiVersion}
-          onApiVersionChange={drafts.setApiVersion}
-          onApiVersionCommit={actions.commitApiVersion}
+          apiVersion={apiVersion}
+          onApiVersionChange={setApiVersion}
+          onApiVersionCommit={endpointActions.commitApiVersion}
         />
       )}
     </ProviderSection>

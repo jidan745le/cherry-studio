@@ -332,4 +332,45 @@ describe('ProviderRegistryService', () => {
       expect(models[0].name).toBe('GPT-4o')
     })
   })
+
+  describe('getProviderPresetMetadata', () => {
+    it('should return preset websites for canonical preset providers', async () => {
+      setupRegistryData()
+      mockGetByProviderId.mockResolvedValue({
+        id: 'openai',
+        presetProviderId: 'openai'
+      })
+
+      const metadata = await providerRegistryService.getProviderPresetMetadata('openai')
+
+      expect(metadata).toEqual({
+        websites: {
+          official: 'https://openai.com'
+        }
+      })
+    })
+
+    it('should resolve custom providers through presetProviderId', async () => {
+      setupRegistryData()
+      mockGetByProviderId.mockResolvedValue({
+        id: 'openai-main',
+        presetProviderId: 'openai'
+      })
+
+      const metadata = await providerRegistryService.getProviderPresetMetadata('openai-main')
+
+      expect(metadata.websites?.official).toBe('https://openai.com')
+    })
+
+    it('should return empty metadata for fully custom providers without preset registry entries', async () => {
+      setupRegistryData()
+      mockGetByProviderId.mockResolvedValue({
+        id: 'my-custom-provider'
+      })
+
+      const metadata = await providerRegistryService.getProviderPresetMetadata('my-custom-provider')
+
+      expect(metadata).toEqual({ websites: undefined })
+    })
+  })
 })

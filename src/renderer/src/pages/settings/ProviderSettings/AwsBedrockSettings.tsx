@@ -1,6 +1,5 @@
 import { RowFlex } from '@cherrystudio/ui'
-import { PROVIDER_URLS } from '@renderer/config/providers'
-import { useProvider, useProviderAuthConfig } from '@renderer/hooks/useProviders'
+import { useProvider, useProviderAuthConfig, useProviderPresetMetadata } from '@renderer/hooks/useProviders'
 import { Alert, Input, Radio } from 'antd'
 import type { FC } from 'react'
 import { useEffect, useState } from 'react'
@@ -16,12 +15,12 @@ const AwsBedrockSettings: FC<Props> = ({ providerId }) => {
   const { t } = useTranslation()
   const { provider, updateAuthConfig } = useProvider(providerId)
   const { data: authConfig } = useProviderAuthConfig(providerId)
+  const { data: presetMetadata } = useProviderPresetMetadata(providerId)
 
   const isIamMode = provider?.authType === 'iam-aws'
   const awsConfig = authConfig?.type === 'iam-aws' ? authConfig : null
 
-  const providerConfig = PROVIDER_URLS['aws-bedrock']
-  const apiKeyWebsite = providerConfig?.websites?.apiKey
+  const apiKeyWebsite = presetMetadata?.websites?.apiKey
 
   const [localAccessKeyId, setLocalAccessKeyId] = useState(awsConfig?.accessKeyId ?? '')
   const [localSecretAccessKey, setLocalSecretAccessKey] = useState(awsConfig?.secretAccessKey ?? '')

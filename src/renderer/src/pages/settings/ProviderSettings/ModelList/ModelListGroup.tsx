@@ -1,9 +1,8 @@
 import { Flex } from '@cherrystudio/ui'
 import CustomCollapse from '@renderer/components/CustomCollapse'
-import { DynamicVirtualList, type DynamicVirtualListRef } from '@renderer/components/VirtualList'
 import type { ModelWithStatus } from '@renderer/types/healthCheck'
 import type { Model } from '@shared/data/types/model'
-import React, { memo, useCallback, useRef } from 'react'
+import React, { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { modelListClasses } from '../components/ProviderSettingsPrimitives'
@@ -15,6 +14,8 @@ interface ModelListGroupProps {
   models: Model[]
   duplicateModelNames: Set<string>
   modelStatusMap: Map<string, ModelWithStatus>
+  isCompact: boolean
+  isUltraCompact: boolean
   defaultOpen: boolean
   disabled?: boolean
   onEditModel: (model: Model) => void
@@ -26,27 +27,20 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
   models,
   duplicateModelNames,
   modelStatusMap,
+  isCompact,
+  isUltraCompact,
   defaultOpen,
   disabled,
   onEditModel,
   onToggleModel
 }) => {
   const { t } = useTranslation()
-  const listRef = useRef<DynamicVirtualListRef>(null)
   const groupLabel = getModelGroupLabel(groupName, t)
-
-  const handleCollapseChange = useCallback((activeKeys: string[] | string) => {
-    const isExpanded = Array.isArray(activeKeys) ? activeKeys.length > 0 : Boolean(activeKeys)
-    if (isExpanded) {
-      requestAnimationFrame(() => listRef.current?.measure())
-    }
-  }, [])
 
   return (
     <div className={modelListClasses.groupShell}>
       <CustomCollapse
         defaultActiveKey={defaultOpen ? ['1'] : []}
-        onChange={handleCollapseChange}
         label={
           <Flex className={modelListClasses.groupHeaderLabel}>
             <span className={modelListClasses.groupTitle}>{groupLabel}</span>
@@ -66,30 +60,21 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
           border: 'none',
           background: 'transparent'
         }}>
-        <DynamicVirtualList
-          ref={listRef}
-          list={models}
-          estimateSize={useCallback(() => 52, [])}
-          overscan={5}
-          scrollerStyle={{
-            maxHeight: 'var(--max-height-scroll-sm)',
-            padding: '2px 6px 2px 12px',
-            scrollbarGutter: 'stable'
-          }}
-          itemContainerStyle={{
-            padding: '2px 0'
-          }}>
-          {(model) => (
+        <div className="flex min-w-0 w-full flex-col gap-1 px-3 pb-[2px] pt-[2px]">
+          {models.map((model) => (
             <ModelListItem
+              key={model.id}
               model={model}
               modelStatus={modelStatusMap.get(model.id)}
               showIdentifier={duplicateModelNames.has(model.name)}
+              isCompact={isCompact}
+              isUltraCompact={isUltraCompact}
               onEdit={onEditModel}
               onToggleEnabled={onToggleModel}
               disabled={disabled}
             />
-          )}
-        </DynamicVirtualList>
+          ))}
+        </div>
       </CustomCollapse>
     </div>
   )

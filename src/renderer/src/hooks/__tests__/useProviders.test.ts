@@ -9,6 +9,7 @@ import {
   useProviderApiKeys,
   useProviderAuthConfig,
   useProviderMutations,
+  useProviderPresetMetadata,
   useProviderRegistryModels,
   useProviders
 } from '../useProviders'
@@ -751,6 +752,40 @@ describe('useProviderRegistryModels', () => {
     renderHook(() => useProviderRegistryModels('openai-main'))
 
     expect(mockUseQuery).toHaveBeenCalledWith('/providers/:providerId/registry-models', {
+      params: { providerId: 'openai-main' }
+    })
+  })
+})
+
+describe('useProviderPresetMetadata', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should query preset metadata for a provider', () => {
+    const mockMetadata = { websites: { official: 'https://openai.com' } }
+    mockUseQuery.mockImplementation(() => ({
+      data: mockMetadata,
+      isLoading: false,
+      isRefreshing: false,
+      error: undefined,
+      refetch: vi.fn(),
+      mutate: vi.fn()
+    }))
+
+    const { result } = renderHook(() => useProviderPresetMetadata('openai'))
+
+    expect(result.current.data).toEqual(mockMetadata)
+    expect(result.current.isLoading).toBe(false)
+    expect(mockUseQuery).toHaveBeenCalledWith('/providers/:providerId/preset-metadata', {
+      params: { providerId: 'openai' }
+    })
+  })
+
+  it('should build correct params for hyphenated provider IDs', () => {
+    renderHook(() => useProviderPresetMetadata('openai-main'))
+
+    expect(mockUseQuery).toHaveBeenCalledWith('/providers/:providerId/preset-metadata', {
       params: { providerId: 'openai-main' }
     })
   })

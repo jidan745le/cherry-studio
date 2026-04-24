@@ -536,10 +536,11 @@ graph TD
   B --> B2[ProviderListItem]
 
   C --> C1[ProviderHeader]
-  C --> C2[AuthenticationSection]
-  C --> C3[ConnectionSection]
-  C --> C4[ProviderSpecificSettings]
-  C --> C5[ModelList]
+  C --> C2[ApiKey]
+  C --> C3[ApiHost]
+  C --> C4[ApiActions]
+  C --> C5[ProviderSpecificSettings]
+  C --> C6[ModelList]
 ```
 
 ### 7.1 新组件布局架构
@@ -700,8 +701,9 @@ graph TD
 - `ProviderListItem`
 - `ProviderSetting`
 - `ProviderHeader`
-- `AuthenticationSection`
-- `ConnectionSection`
+- `ApiKey`
+- `ApiHost`
+- `ApiActions`
 - `ProviderField`
 - `ProviderActions`
 - `ProviderSpecificSettings`

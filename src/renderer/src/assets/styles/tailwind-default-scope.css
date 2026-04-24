@@ -1,3 +1,18 @@
+/*
+ * Provider settings — scoped theme (`.provider-settings-default-scope`)
+ *
+ * Local semantic palette + atomic layout/type tokens for the **provider detail column** only, so we can align
+ * to design mocks without changing app-wide `:root` / global Tailwind theme.
+ *
+ * - **Atoms here** — spacing, radii, font steps, soft borders/surfaces, scroll max-height, chip refs, etc.
+ * - **Compose in TS** — `ProviderSettingsPrimitives.tsx` (`actionClasses`, `fieldClasses`, `modelListClasses`, …).
+ * - **Bridge `--color-*`** — utilities from `@cherrystudio/ui` often resolve `var(--color-foreground)` etc.; those
+ *   are normally `:root`-bound, so this block shadows `--color-*` to the same values as `--foreground`, … inside
+ *   the shell only.
+ *
+ * **Workflow** — add or adjust variables (and bridge) first; then extend `*Classes`; then TSX. Cross-links:
+ * `ProviderSetting.tsx` (shell node), `ModelList.tsx` (heavy `modelListClasses` consumer).
+ */
 .provider-settings-default-scope {
   --font-size: 16px;
   --background: #ffffff;
@@ -136,6 +151,7 @@
   color: var(--foreground);
 }
 
+/* Dark: same scope node; only semantic palette overrides (atoms above inherit unless reset here). */
 .dark .provider-settings-default-scope {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

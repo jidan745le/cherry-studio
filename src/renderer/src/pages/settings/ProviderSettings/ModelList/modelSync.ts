@@ -166,11 +166,25 @@ export async function fetchResolvedProviderModels(providerId: string, provider: 
     try {
       const keyData = await dataApiService.get(`/providers/${providerId}/rotated-key` as const)
       apiKey = (keyData as { apiKey?: string })?.apiKey ?? ''
+      logger.info('Fetched rotated provider API key for model sync', {
+        providerId,
+        hasApiKey: apiKey.length > 0
+      })
     } catch {
       apiKey = ''
+      logger.warn('Failed to fetch rotated provider API key for model sync, continuing without key', {
+        providerId
+      })
     }
 
+    logger.info('Fetching raw provider models from upstream provider SDK', {
+      providerId
+    })
     const fetched = await fetchModels(toV1ProviderShim(provider, { apiKey }))
+    logger.info('Fetched raw provider models from upstream provider SDK', {
+      providerId,
+      fetchedModelCount: fetched.length
+    })
     return await enrichFetchedModels(providerId, fetched)
   } catch (error) {
     logger.error('Failed to fetch and resolve provider models', {

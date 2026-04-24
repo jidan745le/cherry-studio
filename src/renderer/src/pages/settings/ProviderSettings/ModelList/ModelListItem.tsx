@@ -19,6 +19,8 @@ interface ModelListItemProps {
   model: Model
   modelStatus: ModelWithStatus | undefined
   showIdentifier?: boolean
+  isCompact?: boolean
+  isUltraCompact?: boolean
   disabled?: boolean
   onEdit: (model: Model) => void
   onToggleEnabled: (model: Model, enabled: boolean) => Promise<void>
@@ -29,13 +31,15 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
   model,
   modelStatus,
   showIdentifier = false,
+  isCompact = false,
+  isUltraCompact = false,
   disabled,
   onEdit,
   onToggleEnabled
 }) => {
   const { t } = useTranslation()
   const isChecking = modelStatus?.checking === true
-  const shouldShowIdentifier = showIdentifier && model.id !== model.name
+  const shouldShowIdentifier = showIdentifier && !isUltraCompact && model.id !== model.name
 
   const healthResults = useMemo(
     () =>
@@ -135,9 +139,9 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
               </span>
             )}
           </div>
-          {metaLine && <div className={modelListClasses.rowMeta}>{metaLine}</div>}
+          {!isUltraCompact && metaLine && <div className={modelListClasses.rowMeta}>{metaLine}</div>}
           <div className={modelListClasses.rowBadges}>
-            <ModelTagsWithLabelV2 model={model} size={11} showLabel={false} style={{ flexShrink: 0 }} />
+            <ModelTagsWithLabelV2 model={model} size={11} showLabel={false} />
             <FreeTrialModelTagV2 modelId={model.id} providerId={model.providerId} />
           </div>
         </div>
@@ -146,7 +150,7 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
         <HealthStatusIndicator
           results={healthResults}
           loading={isChecking}
-          showLatency
+          showLatency={!isCompact}
           onErrorClick={handleErrorClick}
         />
         <div onClick={(event) => event.stopPropagation()}>

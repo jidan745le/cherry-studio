@@ -1,6 +1,5 @@
 import { RowFlex } from '@cherrystudio/ui'
-import { PROVIDER_URLS } from '@renderer/config/providers'
-import { useProviderAuthConfig, useProviderMutations } from '@renderer/hooks/useProviders'
+import { useProviderAuthConfig, useProviderMutations, useProviderPresetMetadata } from '@renderer/hooks/useProviders'
 import { Alert, Input } from 'antd'
 import type { FC } from 'react'
 import { useEffect, useState } from 'react'
@@ -15,6 +14,7 @@ interface Props {
 const VertexAISettings: FC<Props> = ({ providerId }) => {
   const { t } = useTranslation()
   const { data: authConfig } = useProviderAuthConfig(providerId)
+  const { data: presetMetadata } = useProviderPresetMetadata(providerId)
   const { updateAuthConfig: saveAuthConfigToServer } = useProviderMutations(providerId)
 
   const gcpConfig = authConfig?.type === 'iam-gcp' ? authConfig : null
@@ -35,8 +35,7 @@ const VertexAISettings: FC<Props> = ({ providerId }) => {
     }
   }, [authConfig])
 
-  const providerConfig = PROVIDER_URLS['vertexai']
-  const apiKeyWebsite = providerConfig?.websites?.apiKey
+  const apiKeyWebsite = presetMetadata?.websites?.apiKey
 
   const saveAuthConfig = async () => {
     await saveAuthConfigToServer({

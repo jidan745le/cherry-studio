@@ -2,6 +2,8 @@ import { getProviderLabel } from '@renderer/i18n/label'
 import { ENDPOINT_TYPE, type EndpointType } from '@shared/data/types/model'
 import type { EndpointConfig, Provider } from '@shared/data/types/provider'
 
+import { getProviderHostTopology } from './providerTopology'
+
 // ─── Protocol-level: check defaultChatEndpoint ───────────────────────────────
 
 export function isAnthropicProvider(provider: Provider): boolean {
@@ -68,10 +70,7 @@ export function isOpenAICompatibleProvider(provider: Provider): boolean {
 }
 
 export function isAnthropicSupportedProvider(provider: Provider): boolean {
-  return (
-    provider.defaultChatEndpoint === ENDPOINT_TYPE.ANTHROPIC_MESSAGES ||
-    provider.endpointConfigs?.[ENDPOINT_TYPE.ANTHROPIC_MESSAGES]?.baseUrl != null
-  )
+  return getProviderHostTopology(provider).hasAnthropicEndpoint
 }
 
 // ─── Capability checks (apiFeatures booleans) ────────────────────────────────

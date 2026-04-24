@@ -127,6 +127,17 @@ describe('useModels', () => {
     })
   })
 
+  it('should pass swrOptions through to useQuery', () => {
+    renderHook(() =>
+      useModels({ providerId: 'openai' }, { swrOptions: { revalidateOnMount: false, revalidateIfStale: false } })
+    )
+
+    expect(mockUseQuery).toHaveBeenCalledWith('/models', {
+      query: { providerId: 'openai' },
+      swrOptions: { revalidateOnMount: false, revalidateIfStale: false }
+    })
+  })
+
   it('should expose refetch from useQuery', () => {
     const mockRefetch = vi.fn()
     mockUseQuery.mockImplementation(() => ({

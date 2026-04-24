@@ -3,7 +3,7 @@ import { Button } from '@cherrystudio/ui'
 import { resolveProviderIcon } from '@cherrystudio/ui/icons'
 import OAuthButton from '@renderer/components/OAuth/OAuthButton'
 import { PROVIDER_URLS } from '@renderer/config/providers'
-import { useProvider } from '@renderer/hooks/useProviders'
+import { useProvider, useProviderPresetMetadata } from '@renderer/hooks/useProviders'
 import { getProviderLabel } from '@renderer/i18n/label'
 import { providerBills, providerCharge } from '@renderer/utils/oauth'
 import { hasApiKeys } from '@renderer/utils/provider.v2'
@@ -19,6 +19,7 @@ interface Props {
 const ProviderOAuth: FC<Props> = ({ providerId }) => {
   const { t } = useTranslation()
   const { provider, updateProvider, addApiKey } = useProvider(providerId)
+  const { data: presetMetadata } = useProviderPresetMetadata(providerId)
 
   const setApiKey = async (newKey: string) => {
     await addApiKey(newKey, 'OAuth')
@@ -32,6 +33,7 @@ const ProviderOAuth: FC<Props> = ({ providerId }) => {
   if (provider.id === 'ppio') {
     providerWebsite = 'ppio.com'
   }
+  const officialWebsite = presetMetadata?.websites?.official
 
   const Icon = resolveProviderIcon(provider.id)
 
@@ -65,9 +67,7 @@ const ProviderOAuth: FC<Props> = ({ providerId }) => {
         <Trans
           i18nKey="settings.provider.oauth.description"
           components={{
-            website: (
-              <OfficialWebsite href={PROVIDER_URLS[provider.id].websites.official} target="_blank" rel="noreferrer" />
-            )
+            website: <OfficialWebsite href={officialWebsite ?? ''} target="_blank" rel="noreferrer" />
           }}
           values={{ provider: providerWebsite }}
         />

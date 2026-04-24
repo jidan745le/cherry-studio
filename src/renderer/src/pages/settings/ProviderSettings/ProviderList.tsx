@@ -117,7 +117,7 @@ export default function ProviderList({
   }, [])
 
   return (
-    <aside className="flex h-full w-[250px] shrink-0 flex-col border-foreground/[0.05] border-r bg-(--color-sidebar)">
+    <aside className="flex h-full w-[clamp(180px,20vw,250px)] shrink-0 basis-[clamp(180px,20vw,250px)] flex-col border-foreground/[0.05] border-r bg-(--color-sidebar)">
       <div className="flex shrink-0 items-start justify-between gap-2 px-3 pt-3.5 pb-1.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
