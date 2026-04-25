@@ -35,6 +35,14 @@ export const ProviderAvatarPrimitive: React.FC<ProviderAvatarPrimitiveProps> = (
   // Resolve the icon: prefer `logo` prop, fall back to `logoSrc` for backwards compat
   const resolvedLogo = logo ?? logoSrc
 
+  // Stored provider-logo references can use `icon:<provider-id>` to point at a built-in provider icon.
+  if (typeof resolvedLogo === 'string' && resolvedLogo.startsWith('icon:')) {
+    const referencedIcon = resolveProviderIcon(resolvedLogo.slice(5))
+    if (referencedIcon) {
+      return <referencedIcon.Avatar size={size} className={className} />
+    }
+  }
+
   // If logo is a CompoundIcon, render its Avatar sub-component
   if (resolvedLogo && typeof resolvedLogo !== 'string') {
     const Icon = resolvedLogo

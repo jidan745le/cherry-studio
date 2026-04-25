@@ -6,11 +6,11 @@ import ApiHost from '../ApiHost'
 
 const useProviderMock = vi.fn()
 const useProviderMutationsMock = vi.fn()
+const useProviderEndpointsMock = vi.fn()
 const useProviderMetaMock = vi.fn()
 const useProviderModelSyncMock = vi.fn()
 const useProviderHostPreviewMock = vi.fn()
 const useProviderEndpointActionsMock = vi.fn()
-const showCustomHeaderMock = vi.fn()
 const updateProviderMock = vi.fn()
 const syncProviderModelsMock = vi.fn()
 
@@ -36,10 +36,8 @@ vi.mock('@renderer/pages/settings/ProviderSettings/CherryINSettings', () => ({
   default: () => <div>cherry-in-settings</div>
 }))
 
-vi.mock('@renderer/pages/settings/ProviderSettings/CustomHeaderPopup', () => ({
-  default: {
-    show: (...args: any[]) => showCustomHeaderMock(...args)
-  }
+vi.mock('../ProviderCustomHeaderDrawer', () => ({
+  default: ({ open }: any) => (open ? <div>custom-header-drawer</div> : null)
 }))
 
 vi.mock('@renderer/hooks/useProviders', () => ({
@@ -49,6 +47,10 @@ vi.mock('@renderer/hooks/useProviders', () => ({
 
 vi.mock('../../hooks/providerSetting/useProviderHostPreview', () => ({
   useProviderHostPreview: (...args: any[]) => useProviderHostPreviewMock(...args)
+}))
+
+vi.mock('../../hooks/providerSetting/useProviderEndpoints', () => ({
+  useProviderEndpoints: (...args: any[]) => useProviderEndpointsMock(...args)
 }))
 
 vi.mock('../../hooks/providerSetting/useProviderMeta', () => ({
@@ -88,7 +90,10 @@ describe('ApiHost', () => {
   } as any
 
   const baseProps = {
-    providerId: 'openai',
+    providerId: 'openai'
+  }
+
+  const endpointState = {
     primaryEndpoint: ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS,
     apiHost: 'https://api.example.com',
     setApiHost: vi.fn(),
@@ -102,6 +107,7 @@ describe('ApiHost', () => {
     vi.clearAllMocks()
     useProviderMock.mockReturnValue({ provider })
     useProviderMutationsMock.mockReturnValue({ updateProvider: updateProviderMock })
+    useProviderEndpointsMock.mockReturnValue(endpointState)
     useProviderMetaMock.mockReturnValue({
       isConnectionFieldVisible: true,
       isAzureOpenAI: false,
@@ -131,20 +137,21 @@ describe('ApiHost', () => {
 
     render(<ApiHost {...baseProps} />)
 
+    expect(useProviderEndpointsMock).toHaveBeenCalledWith(provider)
     expect(useProviderHostPreviewMock).toHaveBeenCalledWith({
       provider,
-      apiHost: 'https://api.example.com',
-      anthropicApiHost: 'https://anthropic.example.com'
+      apiHost: endpointState.apiHost,
+      anthropicApiHost: endpointState.anthropicApiHost
     })
     expect(useProviderEndpointActionsMock).toHaveBeenCalledWith({
       provider,
       primaryEndpoint: 'openai-chat-completions',
-      apiHost: 'https://api.example.com',
-      setApiHost: baseProps.setApiHost,
+      apiHost: endpointState.apiHost,
+      setApiHost: endpointState.setApiHost,
       providerApiHost: '',
-      anthropicApiHost: 'https://anthropic.example.com',
-      setAnthropicApiHost: baseProps.setAnthropicApiHost,
-      apiVersion: '2024-01-01',
+      anthropicApiHost: endpointState.anthropicApiHost,
+      setAnthropicApiHost: endpointState.setAnthropicApiHost,
+      apiVersion: endpointState.apiVersion,
       patchProvider: updateProviderMock,
       syncProviderModels: syncProviderModelsMock
     })
@@ -156,7 +163,7 @@ describe('ApiHost', () => {
     expect(resetApiHost).toHaveBeenCalled()
   })
 
-  it('opens the custom header popup locally', () => {
+  it('opens the custom header drawer locally', () => {
     useProviderHostPreviewMock.mockReturnValue({
       hostPreview: 'https://api.example.com/chat/completions',
       anthropicHostPreview: 'https://api.example.com/messages',
@@ -175,7 +182,7 @@ describe('ApiHost', () => {
     expect(settingsButton).not.toBeNull()
     fireEvent.click(settingsButton!)
 
-    expect(showCustomHeaderMock).toHaveBeenCalledWith({ providerId: 'openai' })
+    expect(screen.getByText('custom-header-drawer')).toBeInTheDocument()
   })
 
   it('shows the anthropic host field when anthropic is the default endpoint', () => {
@@ -191,7 +198,12 @@ describe('ApiHost', () => {
       resetApiHost: vi.fn()
     })
 
-    render(<ApiHost {...baseProps} primaryEndpoint={ENDPOINT_TYPE.ANTHROPIC_MESSAGES} />)
+    useProviderEndpointsMock.mockReturnValue({
+      ...endpointState,
+      primaryEndpoint: ENDPOINT_TYPE.ANTHROPIC_MESSAGES
+    })
+
+    render(<ApiHost {...baseProps} />)
 
     expect(screen.getByDisplayValue('https://anthropic.example.com')).toBeInTheDocument()
     expect(screen.queryByDisplayValue('https://api.example.com')).not.toBeInTheDocument()
@@ -223,7 +235,7 @@ describe('ApiHost', () => {
       resetApiHost: vi.fn()
     })
 
-    const { container } = render(<ApiHost {...baseProps} providerId="aws-bedrock" />)
+    const { container } = render(<ApiHost providerId="aws-bedrock" />)
 
     expect(container).toBeEmptyDOMElement()
   })

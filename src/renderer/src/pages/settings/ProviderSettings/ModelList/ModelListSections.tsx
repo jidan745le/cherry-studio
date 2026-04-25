@@ -1,48 +1,22 @@
 import { LoadingIcon } from '@renderer/components/Icons'
-import type { ModelWithStatus } from '@renderer/types/healthCheck'
-import type { Model } from '@shared/data/types/model'
 import { isEmpty } from 'lodash'
 import type React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { modelListClasses } from '../components/ProviderSettingsPrimitives'
 import ModelListGroup from './ModelListGroup'
-import { countModelsInGroups, type ModelGroups } from './modelListViewModel'
+import { useModelListSections } from './useModelListSections'
 
 interface ModelListSectionsProps {
-  isLoading: boolean
-  hasNoModels: boolean
-  hasVisibleModels: boolean
-  enabledGroups: ModelGroups
-  disabledGroups: ModelGroups
-  disabledModelCount: number
-  duplicateModelNames: Set<string>
-  modelStatusMap: Map<string, ModelWithStatus>
-  isCompact: boolean
-  isUltraCompact: boolean
-  isBusy: boolean
-  onEditModel: (model: Model) => void
-  onToggleModel: (model: Model, enabled: boolean) => Promise<void>
+  providerId: string
+  containerWidth: number
 }
 
-const ModelListSections: React.FC<ModelListSectionsProps> = ({
-  isLoading,
-  hasNoModels,
-  hasVisibleModels,
-  enabledGroups,
-  disabledGroups,
-  disabledModelCount,
-  duplicateModelNames,
-  modelStatusMap,
-  isCompact,
-  isUltraCompact,
-  isBusy,
-  onEditModel,
-  onToggleModel
-}) => {
+const ModelListSections: React.FC<ModelListSectionsProps> = ({ providerId, containerWidth }) => {
   const { t } = useTranslation()
+  const sections = useModelListSections({ providerId, containerWidth })
 
-  if (isLoading) {
+  if (sections.isLoading) {
     return (
       <div className="flex items-center justify-center py-6">
         <LoadingIcon color="var(--muted-foreground)" />
@@ -50,64 +24,62 @@ const ModelListSections: React.FC<ModelListSectionsProps> = ({
     )
   }
 
-  if (hasNoModels) {
+  if (sections.hasNoModels) {
     return <div className={modelListClasses.emptyState}>{t('settings.models.empty')}</div>
   }
 
-  if (!hasVisibleModels) {
+  if (!sections.hasVisibleModels) {
     return <div className={modelListClasses.emptyState}>{t('common.no_results')}</div>
   }
+
+  const enabledModelCount = sections.enabledSections.reduce((count, section) => count + section.items.length, 0)
 
   return (
     <div className={modelListClasses.listScroller}>
       <div className="flex min-h-full min-w-0 w-full flex-col gap-3">
-        {!isEmpty(enabledGroups) && (
+        {!isEmpty(sections.enabledSections) && (
           <div className="space-y-2.5">
             <div className={modelListClasses.subsectionRow}>
               <p className={modelListClasses.subsectionTitleEnabled}>{t('settings.models.check.enabled')}</p>
               <span className={modelListClasses.subsectionRule} />
-              <span className={modelListClasses.subsectionCountEnabled}>{countModelsInGroups(enabledGroups)}</span>
+              <span className={modelListClasses.subsectionCountEnabled}>{enabledModelCount}</span>
             </div>
             <div className="flex flex-col gap-3">
-              {Object.keys(enabledGroups).map((group, index) => (
+              {sections.enabledSections.map(({ groupName, items }, index) => (
                 <ModelListGroup
-                  key={`enabled-${group}`}
-                  groupName={group}
-                  models={enabledGroups[group]}
-                  duplicateModelNames={duplicateModelNames}
-                  modelStatusMap={modelStatusMap}
-                  isCompact={isCompact}
-                  isUltraCompact={isUltraCompact}
+                  key={`enabled-${groupName}`}
+                  groupName={groupName}
+                  items={items}
+                  isCompact={sections.isCompact}
+                  isUltraCompact={sections.isUltraCompact}
                   defaultOpen={index <= 5}
-                  disabled={isBusy}
-                  onEditModel={onEditModel}
-                  onToggleModel={onToggleModel}
+                  disabled={sections.isHealthChecking}
+                  onEditModel={sections.onEditModel}
+                  onToggleModel={sections.onToggleModel}
                 />
               ))}
             </div>
           </div>
         )}
-        {!isEmpty(disabledGroups) && (
+        {!isEmpty(sections.disabledSections) && (
           <div className="space-y-2.5">
             <div className={modelListClasses.subsectionRow}>
               <p className={modelListClasses.subsectionTitleDisabled}>{t('settings.models.check.disabled')}</p>
               <span className={modelListClasses.subsectionRule} />
-              <span className={modelListClasses.subsectionCountDisabled}>{disabledModelCount}</span>
+              <span className={modelListClasses.subsectionCountDisabled}>{sections.disabledModelCount}</span>
             </div>
             <div className="flex flex-col gap-3">
-              {Object.keys(disabledGroups).map((group, index) => (
+              {sections.disabledSections.map(({ groupName, items }, index) => (
                 <ModelListGroup
-                  key={`disabled-${group}`}
-                  groupName={group}
-                  models={disabledGroups[group]}
-                  duplicateModelNames={duplicateModelNames}
-                  modelStatusMap={modelStatusMap}
-                  isCompact={isCompact}
-                  isUltraCompact={isUltraCompact}
+                  key={`disabled-${groupName}`}
+                  groupName={groupName}
+                  items={items}
+                  isCompact={sections.isCompact}
+                  isUltraCompact={sections.isUltraCompact}
                   defaultOpen={index <= 2}
-                  disabled={isBusy}
-                  onEditModel={onEditModel}
-                  onToggleModel={onToggleModel}
+                  disabled={sections.isHealthChecking}
+                  onEditModel={sections.onEditModel}
+                  onToggleModel={sections.onToggleModel}
                 />
               ))}
             </div>

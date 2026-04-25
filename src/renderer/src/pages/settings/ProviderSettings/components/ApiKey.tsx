@@ -1,45 +1,34 @@
 import { InputGroup, InputGroupAddon, InputGroupInput, Tooltip, WarnTooltip } from '@cherrystudio/ui'
+import { useProvider } from '@renderer/hooks/useProviders'
 import type { ApiKeyConnectivity } from '@renderer/types/healthCheck'
-import type { Provider } from '@shared/data/types/provider'
 import { Copy, Eye, EyeOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useAuthenticationApiKey } from '../hooks/providerSetting/useAuthenticationApiKey'
+import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
 import ProviderField from './ProviderField'
 import ProviderSection from './ProviderSection'
 import { fieldClasses } from './ProviderSettingsPrimitives'
 
 interface ApiKeyProps {
-  provider: Provider
-  inputApiKey: string
-  setInputApiKey: (value: string) => void
-  serverApiKey: string
-  isApiKeyFieldVisible: boolean
-  apiKeyWebsite?: string
-  isDmxapi: boolean
+  providerId: string
   apiKeyConnectivity: ApiKeyConnectivity
   onShowApiKeyError: () => void
 }
 
-export default function ApiKey({
-  provider,
-  inputApiKey,
-  setInputApiKey,
-  serverApiKey,
-  isApiKeyFieldVisible,
-  apiKeyWebsite,
-  isDmxapi,
-  apiKeyConnectivity,
-  onShowApiKeyError
-}: ApiKeyProps) {
+export default function ApiKey({ providerId, apiKeyConnectivity, onShowApiKeyError }: ApiKeyProps) {
   const { t } = useTranslation()
+  const { provider } = useProvider(providerId)
+  const meta = useProviderMeta(providerId)
+  const { inputApiKey, setInputApiKey, serverApiKey } = useAuthenticationApiKey()
   const [showApiKey, setShowApiKey] = useState(false)
 
   useEffect(() => {
     setShowApiKey(false)
   }, [provider?.id])
 
-  if (!isApiKeyFieldVisible) {
+  if (!provider || !meta.isApiKeyFieldVisible) {
     return null
   }
 
@@ -49,9 +38,9 @@ export default function ApiKey({
         className="space-y-2.5"
         title={t('settings.provider.api_key.label')}
         action={
-          apiKeyWebsite && !isDmxapi ? (
+          meta.apiKeyWebsite && !meta.isDmxapi ? (
             <a
-              href={apiKeyWebsite}
+              href={meta.apiKeyWebsite}
               target="_blank"
               rel="noreferrer"
               className="shrink-0 text-(--color-primary) text-[12px] leading-[1.35] hover:underline">

@@ -13,37 +13,34 @@ import { useTranslation } from 'react-i18next'
 import { providerCheckApiAdapter } from '../../adapters/providerCheckApiAdapter'
 import SelectProviderModelPopup from '../../SelectProviderModelPopup'
 import { PROVIDER_SETTINGS_MODEL_SWR_OPTIONS } from './constants'
-
-interface UseProviderConnectionCheckParams {
-  inputApiKey: string
-  apiHost: string
-  openApiKeyList?: () => Promise<void>
-}
+import { useAuthenticationApiKey } from './useAuthenticationApiKey'
+import { useOpenApiKeyList } from './useOpenApiKeyList'
+import { useProviderEndpoints } from './useProviderEndpoints'
 
 /**
  * Boundary rule: this is a domain-cohesive connection-check hook.
  * It should internalize provider/models/timer reads, expose only connectivity state and actions,
- * and accept only the true shared drafts/actions it cannot resolve itself.
- * Callers should pass providerId plus shared drafts, never provider/models/timer wiring.
+ * and accept only the true shared values/actions it cannot resolve itself.
+ * Callers should pass providerId plus shared values, never provider/models/timer wiring.
  *
  * Intent: run provider connection checks against the current editable credentials and endpoint.
  * Scope: use in Provider Settings where the user can manually verify connectivity before saving more changes.
- * Does not handle: key draft ownership, endpoint draft ownership, or persistence of any provider fields.
+ * Does not handle: key field ownership, endpoint field ownership, or persistence of any provider fields.
  *
  * @example
  * ```tsx
- * const connection = useProviderConnectionCheck(providerId, { inputApiKey, apiHost, openApiKeyList })
+ * const connection = useProviderConnectionCheck(providerId)
  * <Button onClick={() => void connection.checkApi()}>Check</Button>
  * ```
  */
-export function useProviderConnectionCheck(
-  providerId: string,
-  { inputApiKey, apiHost, openApiKeyList }: UseProviderConnectionCheckParams
-) {
+export function useProviderConnectionCheck(providerId: string) {
   const { provider } = useProvider(providerId)
   const { models } = useModels({ providerId }, { swrOptions: PROVIDER_SETTINGS_MODEL_SWR_OPTIONS })
   const { setTimeoutTimer } = useTimer()
   const { t, i18n } = useTranslation()
+  const { inputApiKey } = useAuthenticationApiKey()
+  const { apiHost } = useProviderEndpoints(provider)
+  const { openApiKeyList } = useOpenApiKeyList(providerId)
   const [apiKeyConnectivity, setApiKeyConnectivity] = useState<ApiKeyConnectivity>({
     status: HealthStatus.NOT_CHECKED,
     checking: false
@@ -61,7 +58,7 @@ export function useProviderConnectionCheck(
     const formattedKey = formatApiKeys(inputApiKey)
 
     if (formattedKey.includes(',')) {
-      await openApiKeyList?.()
+      await openApiKeyList()
       return
     }
 

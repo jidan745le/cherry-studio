@@ -3,16 +3,18 @@ import { cn } from '@renderer/utils'
 import { Activity, KeyRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
 import { actionClasses } from './ProviderSettingsPrimitives'
 
 interface ApiActionsProps {
-  showApiKeyListButton: boolean
+  providerId: string
   onCheckConnection: () => void
   onOpenApiKeyList: () => void
 }
 
-export default function ApiActions({ showApiKeyListButton, onCheckConnection, onOpenApiKeyList }: ApiActionsProps) {
+export default function ApiActions({ providerId, onCheckConnection, onOpenApiKeyList }: ApiActionsProps) {
   const { t } = useTranslation()
+  const meta = useProviderMeta(providerId)
 
   return (
     <div className={actionClasses.row}>
@@ -24,12 +26,12 @@ export default function ApiActions({ showApiKeyListButton, onCheckConnection, on
         <Activity className={actionClasses.icon} />
         {t('settings.provider.check')}
       </Button>
-      {showApiKeyListButton && (
+      {meta.isApiKeyFieldVisible && (
         <Button
           variant="outline"
           size="sm"
           className={cn(actionClasses.btnBase, actionClasses.btnNeutral)}
-          onClick={() => void onOpenApiKeyList()}>
+          onClick={onOpenApiKeyList}>
           <KeyRound className={actionClasses.icon} />
           {t('settings.provider.api.key.list.title')}
         </Button>

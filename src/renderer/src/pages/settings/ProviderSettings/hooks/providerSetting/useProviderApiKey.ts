@@ -2,9 +2,20 @@ import { useProvider, useProviderApiKeys, useProviderMutations } from '@renderer
 import { formatApiKeys, splitApiKeyString } from '@renderer/utils/api'
 import type { ApiKeyEntry } from '@shared/data/types/provider'
 import { debounce } from 'lodash'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ApiKeysData } from './types'
+
+export interface ApiKeyValue {
+  serverApiKey: string
+  inputApiKey: string
+  hasPendingSync: boolean
+}
+
+export interface ApiKeyState extends ApiKeyValue {
+  setInputApiKey: (value: string) => void
+  commitInputApiKeyNow: () => Promise<void>
+}
 
 function getEnabledApiKeyString(apiKeysData: ApiKeysData | undefined) {
   return (
@@ -68,21 +79,43 @@ function toApiKeyEntries(value: string, apiKeysData: ApiKeysData | undefined): A
   return [...nextEntries, ...untouchedDisabledEntries]
 }
 
+function createApiKeyValue(serverApiKey: string): ApiKeyValue {
+  return {
+    serverApiKey,
+    inputApiKey: serverApiKey,
+    hasPendingSync: false
+  }
+}
+
+function isSameApiKeyValue(left: ApiKeyValue, right: ApiKeyValue) {
+  return (
+    left.serverApiKey === right.serverApiKey &&
+    left.inputApiKey === right.inputApiKey &&
+    left.hasPendingSync === right.hasPendingSync
+  )
+}
+
+function syncApiKeyValueFromServer(value: ApiKeyValue, serverApiKey: string): ApiKeyValue {
+  if (!value.hasPendingSync) {
+    return createApiKeyValue(serverApiKey)
+  }
+
+  const normalizedInputApiKey = toEnabledApiKeyString(value.inputApiKey)
+  if (normalizedInputApiKey === serverApiKey) {
+    return createApiKeyValue(serverApiKey)
+  }
+
+  return {
+    ...value,
+    serverApiKey,
+    hasPendingSync: true
+  }
+}
+
 /**
- * Boundary rule: this is a domain-cohesive hook for the provider API key subdomain.
- * It should internalize provider-local queries, mutations, and input normalization concerns,
- * expose only the minimal UI-facing state/actions for API key editing, and prefer a providerId-only API.
- * Callers should pass only the provider id, never page-assembled domain-local dependencies.
- *
- * Intent: manage the API key input value and its debounced synchronization back to provider settings.
- * Scope: use inside Provider Settings composition code where inline API key editing is rendered.
- * Does not handle: popup orchestration, connection checks, endpoint drafts, or model sync triggers.
- *
- * @example
- * ```tsx
- * const apiKey = useProviderApiKey(providerId)
- * <Input value={apiKey.inputApiKey} onChange={(event) => apiKey.setInputApiKey(event.target.value)} />
- * ```
+ * Intent: create one API key state owner for one AuthenticationSection instance and wire it to provider settings sync.
+ * Scope: use only at the auth-section owner boundary, then pass the state through a narrow local provider.
+ * Does not handle: popup orchestration, connection checks, or endpoint ownership.
  */
 export function useProviderApiKey(providerId: string) {
   const { provider } = useProvider(providerId)
@@ -90,68 +123,98 @@ export function useProviderApiKey(providerId: string) {
   const { updateApiKeys } = useProviderMutations(providerId)
 
   const serverApiKey = useMemo(() => getEnabledApiKeyString(apiKeysData), [apiKeysData])
-  const [inputApiKey, setInputApiKeyValue] = useState(serverApiKey)
-  const [expectedServerApiKey, setExpectedServerApiKey] = useState<string | null>(null)
+  const [value, setValue] = useState<ApiKeyValue>(() => createApiKeyValue(serverApiKey))
+  const previousProviderIdRef = useRef(providerId)
+  const valueRef = useRef(value)
+  const saveApiKeyRef = useRef<(value: string) => Promise<void>>(async () => undefined)
 
-  const normalizedInputApiKey = useMemo(() => toEnabledApiKeyString(inputApiKey), [inputApiKey])
-  const hasPendingSync = expectedServerApiKey !== null
+  const saveApiKey = useCallback(
+    async (value: string) => {
+      if (!provider) {
+        return
+      }
 
-  const persistApiKeyDraft = useCallback(
-    async (formattedValue: string) => {
-      await updateApiKeys(toApiKeyEntries(formattedValue, apiKeysData))
+      await updateApiKeys(toApiKeyEntries(value, apiKeysData))
     },
-    [apiKeysData, updateApiKeys]
+    [apiKeysData, provider, updateApiKeys]
   )
+
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
+
+  useEffect(() => {
+    saveApiKeyRef.current = saveApiKey
+  }, [saveApiKey])
+
+  const saveLater = useMemo(
+    () =>
+      debounce((nextValue: string) => {
+        void saveApiKeyRef.current(nextValue)
+      }, 150),
+    []
+  )
+
+  useEffect(() => {
+    const providerChanged = previousProviderIdRef.current !== providerId
+    previousProviderIdRef.current = providerId
+
+    const nextValue = providerChanged
+      ? createApiKeyValue(serverApiKey)
+      : syncApiKeyValueFromServer(valueRef.current, serverApiKey)
+
+    if (!nextValue.hasPendingSync) {
+      saveLater.cancel()
+    }
+
+    setValue((previousValue) => (isSameApiKeyValue(previousValue, nextValue) ? previousValue : nextValue))
+  }, [providerId, saveLater, serverApiKey])
+
+  useEffect(() => () => saveLater.cancel(), [saveLater])
 
   const setInputApiKey = useCallback(
-    (value: string) => {
-      const normalizedValue = toEnabledApiKeyString(value)
-      setInputApiKeyValue(value)
-      setExpectedServerApiKey(normalizedValue === serverApiKey ? null : normalizedValue)
+    (nextInputApiKey: string) => {
+      const normalizedInputApiKey = toEnabledApiKeyString(nextInputApiKey)
+      const hasPendingSync = normalizedInputApiKey !== valueRef.current.serverApiKey
+
+      setValue((previousValue) => {
+        const nextValue = {
+          ...previousValue,
+          inputApiKey: nextInputApiKey,
+          hasPendingSync
+        }
+
+        return isSameApiKeyValue(previousValue, nextValue) ? previousValue : nextValue
+      })
+
+      if (hasPendingSync) {
+        saveLater(normalizedInputApiKey)
+        return
+      }
+
+      saveLater.cancel()
     },
-    [serverApiKey]
+    [saveLater]
   )
-
-  const debouncedUpdateApiKey = useMemo(
-    () => debounce((formattedValue: string) => void persistApiKeyDraft(formattedValue), 150),
-    [persistApiKeyDraft]
-  )
-
-  useEffect(() => {
-    if (!hasPendingSync) {
-      setInputApiKeyValue(serverApiKey)
-      return
-    }
-
-    if (serverApiKey === expectedServerApiKey) {
-      setExpectedServerApiKey(null)
-      setInputApiKeyValue(serverApiKey)
-    }
-  }, [expectedServerApiKey, hasPendingSync, serverApiKey])
-
-  useEffect(() => {
-    if (provider && normalizedInputApiKey !== serverApiKey) {
-      void debouncedUpdateApiKey(normalizedInputApiKey)
-    }
-
-    return () => debouncedUpdateApiKey.cancel()
-  }, [debouncedUpdateApiKey, normalizedInputApiKey, provider, serverApiKey])
 
   const commitInputApiKeyNow = useCallback(async () => {
-    debouncedUpdateApiKey.cancel()
+    saveLater.cancel()
 
-    if (!provider || normalizedInputApiKey === serverApiKey) {
+    const currentValue = valueRef.current
+    const normalizedInputApiKey = toEnabledApiKeyString(currentValue.inputApiKey)
+    if (normalizedInputApiKey === currentValue.serverApiKey) {
       return
     }
 
-    await persistApiKeyDraft(normalizedInputApiKey)
-  }, [debouncedUpdateApiKey, normalizedInputApiKey, persistApiKeyDraft, provider, serverApiKey])
+    await saveApiKeyRef.current(normalizedInputApiKey)
+  }, [saveLater])
 
-  return {
-    serverApiKey,
-    inputApiKey,
-    setInputApiKey,
-    hasPendingSync,
-    commitInputApiKeyNow
-  }
+  return useMemo(
+    () => ({
+      ...value,
+      setInputApiKey,
+      commitInputApiKeyNow
+    }),
+    [commitInputApiKeyNow, setInputApiKey, value]
+  )
 }

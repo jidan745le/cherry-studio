@@ -9,7 +9,6 @@
  * so the DB table definition is the single source of truth.
  */
 
-import { userProviderInsertSchema } from '@data/db/schemas/userProvider'
 import { providerRegistryService } from '@data/services/ProviderRegistryService'
 import { providerService } from '@data/services/ProviderService'
 import { DataApiErrorFactory } from '@shared/data/api'
@@ -17,7 +16,42 @@ import type { ApiHandler, ApiMethods } from '@shared/data/api/apiTypes'
 import { OrderBatchRequestSchema, OrderRequestSchema } from '@shared/data/api/schemas/_endpointHelpers'
 import type { CreateProviderDto, UpdateApiKeyDto, UpdateProviderDto } from '@shared/data/api/schemas/providers'
 import type { ProviderSchemas } from '@shared/data/api/schemas/providers'
+import { ENDPOINT_TYPE, objectValues } from '@shared/data/types/model'
+import {
+  ApiFeaturesSchema,
+  ApiKeyEntrySchema,
+  AuthConfigSchema,
+  EndpointConfigSchema,
+  ProviderSettingsSchema
+} from '@shared/data/types/provider'
 import * as z from 'zod'
+
+const endpointTypeSchema = z.enum(objectValues(ENDPOINT_TYPE))
+
+const createProviderBodySchema = z.object({
+  providerId: z.string().min(1),
+  presetProviderId: z.string().optional(),
+  name: z.string().min(1),
+  endpointConfigs: z.record(endpointTypeSchema, EndpointConfigSchema).optional() as z.ZodOptional<
+    z.ZodType<Partial<Record<(typeof ENDPOINT_TYPE)[keyof typeof ENDPOINT_TYPE], z.infer<typeof EndpointConfigSchema>>>>
+  >,
+  defaultChatEndpoint: endpointTypeSchema.optional(),
+  apiKeys: z.array(ApiKeyEntrySchema).optional(),
+  authConfig: AuthConfigSchema.optional(),
+  apiFeatures: ApiFeaturesSchema.optional(),
+  providerSettings: ProviderSettingsSchema.partial().optional()
+})
+
+const updateProviderBodySchema = createProviderBodySchema
+  .omit({
+    providerId: true,
+    presetProviderId: true,
+    name: true
+  })
+  .extend({
+    name: z.string().min(1).optional(),
+    isEnabled: z.boolean().optional()
+  })
 
 /**
  * Handler type for a specific provider endpoint
@@ -38,7 +72,7 @@ export const providerHandlers: {
     },
 
     POST: async ({ body }) => {
-      const parsed = userProviderInsertSchema.safeParse(body)
+      const parsed = createProviderBodySchema.safeParse(body)
       if (!parsed.success) {
         throw DataApiErrorFactory.validation({ body: [parsed.error.message] })
       }
@@ -52,7 +86,7 @@ export const providerHandlers: {
     },
 
     PATCH: async ({ params, body }) => {
-      const parsed = userProviderInsertSchema.partial().safeParse(body)
+      const parsed = updateProviderBodySchema.safeParse(body)
       if (!parsed.success) {
         throw DataApiErrorFactory.validation({ body: [parsed.error.message] })
       }

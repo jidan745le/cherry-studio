@@ -1,3 +1,12 @@
+import {
+  isEmbeddingModel,
+  isFreeModel,
+  isFunctionCallingModel,
+  isReasoningModel,
+  isRerankModel,
+  isVisionModel,
+  isWebSearchModel
+} from '@renderer/config/models/v2'
 import type { ModelWithStatus } from '@renderer/types/healthCheck'
 import type { Model } from '@shared/data/types/model'
 import { sortBy, toPairs } from 'lodash'
@@ -12,13 +21,25 @@ export type ModelSections = {
   disabled: ModelGroups
 }
 
-export type ModelListCategoryOption = string
+export const MODEL_LIST_CAPABILITY_FILTERS = [
+  'all',
+  'reasoning',
+  'vision',
+  'websearch',
+  'free',
+  'embedding',
+  'rerank',
+  'function_calling'
+] as const
+
+export type ModelListCapabilityFilter = (typeof MODEL_LIST_CAPABILITY_FILTERS)[number]
+export type ModelListCapabilityCounts = Record<ModelListCapabilityFilter, number>
 
 export type ModelListDerivedState = {
   filteredModels: Model[]
   sections: ModelSections
-  categoryOptions: ModelListCategoryOption[]
-  categoryModelCounts: Record<string, number>
+  capabilityOptions: readonly ModelListCapabilityFilter[]
+  capabilityModelCounts: ModelListCapabilityCounts
   duplicateModelNames: Set<string>
   enabledModelCount: number
   disabledModelCount: number
@@ -34,10 +55,10 @@ export type ModelListDerivedState = {
 
 export const MODEL_COUNT_THRESHOLD = 10
 
-type ModelListViewModelInput = {
+type CalculateModelListDerivedStateInput = {
   models: Model[]
   searchText: string
-  selectedGroup: string
+  selectedCapabilityFilter: ModelListCapabilityFilter
   modelStatuses: ModelWithStatus[]
   containerWidth: number
 }
@@ -58,17 +79,46 @@ export const groupModels = (models: Model[]): ModelGroups => {
   }, {} as ModelGroups)
 }
 
-export const applyModelFilters = (models: Model[], searchText: string, selectedGroup: string): Model[] => {
+export const matchesCapabilityFilter = (model: Model, selectedCapabilityFilter: ModelListCapabilityFilter): boolean => {
+  switch (selectedCapabilityFilter) {
+    case 'reasoning':
+      return isReasoningModel(model)
+    case 'vision':
+      return isVisionModel(model)
+    case 'websearch':
+      return isWebSearchModel(model)
+    case 'free':
+      return isFreeModel(model)
+    case 'embedding':
+      return isEmbeddingModel(model)
+    case 'rerank':
+      return isRerankModel(model)
+    case 'function_calling':
+      return isFunctionCallingModel(model)
+    default:
+      return true
+  }
+}
+
+export const applyModelFilters = (
+  models: Model[],
+  searchText: string,
+  selectedCapabilityFilter: ModelListCapabilityFilter
+): Model[] => {
   const searchedModels = searchText ? filterProviderSettingModelsByKeywords(searchText, models) : models
-  if (selectedGroup === 'all') {
+  if (selectedCapabilityFilter === 'all') {
     return searchedModels
   }
 
-  return searchedModels.filter((model) => normalizeModelGroupName(model.group) === selectedGroup)
+  return searchedModels.filter((model) => matchesCapabilityFilter(model, selectedCapabilityFilter))
 }
 
-export const calculateModelSections = (models: Model[], searchText: string, selectedGroup: string): ModelSections => {
-  const filteredModels = applyModelFilters(models, searchText, selectedGroup)
+export const calculateModelSections = (
+  models: Model[],
+  searchText: string,
+  selectedCapabilityFilter: ModelListCapabilityFilter
+): ModelSections => {
+  const filteredModels = applyModelFilters(models, searchText, selectedCapabilityFilter)
 
   return {
     enabled: groupModels(filteredModels.filter((model) => model.isEnabled)),
@@ -80,21 +130,40 @@ export const countModelsInGroups = (groups: ModelGroups): number => {
   return Object.values(groups).reduce((acc, group) => acc + group.length, 0)
 }
 
-const getCategoryOptions = (models: Model[]): ModelListCategoryOption[] => {
-  const groups = Array.from(new Set(models.map((model) => normalizeModelGroupName(model.group))))
-  return ['all', ...sortBy(groups)]
-}
+export const getCapabilityModelCounts = (models: Model[]): ModelListCapabilityCounts => {
+  const counts = Object.fromEntries(
+    MODEL_LIST_CAPABILITY_FILTERS.map((filter) => [filter, 0])
+  ) as ModelListCapabilityCounts
+  counts.all = models.length
 
-const getCategoryModelCounts = (models: Model[]): Record<string, number> => {
-  const counts: Record<string, number> = { all: models.length }
   for (const model of models) {
-    const groupName = normalizeModelGroupName(model.group)
-    counts[groupName] = (counts[groupName] ?? 0) + 1
+    if (isReasoningModel(model)) {
+      counts.reasoning += 1
+    }
+    if (isVisionModel(model)) {
+      counts.vision += 1
+    }
+    if (isWebSearchModel(model)) {
+      counts.websearch += 1
+    }
+    if (isFreeModel(model)) {
+      counts.free += 1
+    }
+    if (isEmbeddingModel(model)) {
+      counts.embedding += 1
+    }
+    if (isRerankModel(model)) {
+      counts.rerank += 1
+    }
+    if (isFunctionCallingModel(model)) {
+      counts.function_calling += 1
+    }
   }
+
   return counts
 }
 
-const getChipMaxWidth = (containerWidth: number): number | undefined => {
+export const getChipMaxWidth = (containerWidth: number): number | undefined => {
   if (containerWidth <= 0) {
     return undefined
   }
@@ -113,11 +182,11 @@ const getChipMaxWidth = (containerWidth: number): number | undefined => {
 export const calculateModelListDerivedState = ({
   models,
   searchText,
-  selectedGroup,
+  selectedCapabilityFilter,
   modelStatuses,
   containerWidth
-}: ModelListViewModelInput): ModelListDerivedState => {
-  const filteredModels = applyModelFilters(models, searchText, selectedGroup)
+}: CalculateModelListDerivedStateInput): ModelListDerivedState => {
+  const filteredModels = applyModelFilters(models, searchText, selectedCapabilityFilter)
   const enabledModelCount = filteredModels.filter((model) => model.isEnabled).length
 
   return {
@@ -126,8 +195,8 @@ export const calculateModelListDerivedState = ({
       enabled: groupModels(filteredModels.filter((model) => model.isEnabled)),
       disabled: groupModels(filteredModels.filter((model) => !model.isEnabled))
     },
-    categoryOptions: getCategoryOptions(models),
-    categoryModelCounts: getCategoryModelCounts(models),
+    capabilityOptions: MODEL_LIST_CAPABILITY_FILTERS,
+    capabilityModelCounts: getCapabilityModelCounts(models),
     duplicateModelNames: getDuplicateProviderSettingModelNames(models),
     enabledModelCount,
     disabledModelCount: filteredModels.length - enabledModelCount,

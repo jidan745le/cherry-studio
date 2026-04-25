@@ -1,13 +1,10 @@
 import { useTheme } from '@renderer/context/ThemeProvider'
-import { useModels } from '@renderer/hooks/useModels'
 import { useProvider } from '@renderer/hooks/useProviders'
 
 import AuthenticationSection from './components/AuthenticationSection'
 import ProviderHeader from './components/ProviderHeader'
 import { ProviderSettingsContainer } from './components/ProviderSettingsPrimitives'
-import { PROVIDER_SETTINGS_MODEL_SWR_OPTIONS } from './hooks/providerSetting/constants'
 import { useProviderAutoModelSync } from './hooks/providerSetting/useProviderAutoModelSync'
-import { useProviderEnable } from './hooks/providerSetting/useProviderEnable'
 import { useProviderLegacyWebSearchSync } from './hooks/providerSetting/useProviderLegacyWebSearchSync'
 import { useProviderOnboardingAutoEnable } from './hooks/providerSetting/useProviderOnboardingAutoEnable'
 import { ModelList } from './ModelList'
@@ -40,10 +37,7 @@ interface ProviderSettingProps {
  */
 export default function ProviderSetting({ providerId, isOnboarding = false }: ProviderSettingProps) {
   const { provider } = useProvider(providerId)
-  const { models } = useModels({ providerId }, { swrOptions: PROVIDER_SETTINGS_MODEL_SWR_OPTIONS })
   const { theme } = useTheme()
-
-  const { toggleProviderEnabled } = useProviderEnable(providerId)
 
   useProviderAutoModelSync(providerId)
   useProviderOnboardingAutoEnable({
@@ -64,12 +58,12 @@ export default function ProviderSetting({ providerId, isOnboarding = false }: Pr
           data-testid="provider-detail-shell"
           className="provider-settings-default-scope flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 px-5 py-3.5">
-            <ProviderHeader provider={provider} onEnabledChange={(enabled) => void toggleProviderEnabled(enabled)} />
+            <ProviderHeader providerId={providerId} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/20 [&::-webkit-scrollbar]:w-[3px]">
             <div className="flex min-h-full w-full min-w-0 flex-col gap-4">
-              <AuthenticationSection providerId={provider.id} />
-              <ModelList providerId={provider.id} provider={provider} models={models} />
+              <AuthenticationSection providerId={providerId} />
+              <ModelList providerId={providerId} />
             </div>
           </div>
         </div>

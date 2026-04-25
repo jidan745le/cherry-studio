@@ -1,21 +1,25 @@
 import { Switch } from '@cherrystudio/ui'
 import { ProviderAvatar } from '@renderer/components/ProviderAvatar'
+import { useProvider } from '@renderer/hooks/useProviders'
+import { isSystemProvider } from '@renderer/utils/provider.v2'
 import { useTranslation } from 'react-i18next'
 
+import { useProviderEnable } from '../hooks/providerSetting/useProviderEnable'
 import { useProviderMeta } from '../hooks/providerSetting/useProviderMeta'
 
 interface ProviderHeaderProps {
-  provider: {
-    id: string
-    name: string
-    isEnabled: boolean
-  }
-  onEnabledChange: (enabled: boolean) => void
+  providerId: string
 }
 
-export default function ProviderHeader({ provider, onEnabledChange }: ProviderHeaderProps) {
+export default function ProviderHeader({ providerId }: ProviderHeaderProps) {
   const { t } = useTranslation()
-  const meta = useProviderMeta(provider.id)
+  const { provider } = useProvider(providerId)
+  const meta = useProviderMeta(providerId)
+  const { toggleProviderEnabled } = useProviderEnable(providerId)
+
+  if (!provider) {
+    return null
+  }
 
   return (
     <div className="flex items-center gap-3">
@@ -36,10 +40,12 @@ export default function ProviderHeader({ provider, onEnabledChange }: ProviderHe
               </a>
             )}
           </div>
-          <p className="mt-0.5 text-(--color-muted-foreground) text-[13px] leading-[1.35]">{provider.id}</p>
+          {isSystemProvider(provider) && (
+            <p className="mt-0.5 text-(--color-muted-foreground) text-[13px] leading-[1.35]">{provider.id}</p>
+          )}
         </div>
       </div>
-      <Switch checked={provider.isEnabled} onCheckedChange={onEnabledChange} />
+      <Switch checked={provider.isEnabled} onCheckedChange={(enabled) => void toggleProviderEnabled(enabled)} />
     </div>
   )
 }

@@ -100,8 +100,9 @@ function getRelativeLuminance(r: number, g: number, b: number): number {
  * @returns {HexColor} 十六进制颜色字符串
  */
 export function generateColorFromChar(char: string): HexColor {
-  // 使用字符的Unicode值作为随机种子
-  const seed = char.charCodeAt(0)
+  // 空字符串/空白输入会导致 charCodeAt 返回 NaN，统一回退到稳定 seed。
+  const normalizedChar = char.trim()
+  const seed = normalizedChar.length > 0 ? normalizedChar.charCodeAt(0) : 0
 
   // 使用简单的线性同余生成器创建伪随机数
   const a = 1664525

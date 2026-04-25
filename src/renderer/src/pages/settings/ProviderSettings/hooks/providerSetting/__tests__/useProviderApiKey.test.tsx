@@ -42,7 +42,7 @@ describe('useProviderApiKey', () => {
     })
   })
 
-  it('keeps the local api key draft when slower server echoes older values', () => {
+  it('keeps the local api key input when slower server echoes older values', () => {
     const { result, rerender } = renderHook(() => useProviderApiKey('openai'))
 
     expect(result.current.inputApiKey).toBe('')
@@ -136,5 +136,16 @@ describe('useProviderApiKey', () => {
     })
 
     expect(updateApiKeysMock).toHaveBeenCalledWith([{ id: expect.any(String), key: 'sk-now', isEnabled: true }])
+  })
+
+  it('keeps api key input local to each store', () => {
+    const first = renderHook(() => useProviderApiKey('openai'))
+    const second = renderHook(() => useProviderApiKey('openai'))
+
+    act(() => {
+      first.result.current.setInputApiKey('sk-shared')
+    })
+
+    expect(second.result.current.inputApiKey).toBe('')
   })
 })

@@ -1,10 +1,8 @@
-import { useReorder } from '@data/hooks/useReorder'
 import { useProviders } from '@renderer/hooks/useProviders'
-import type { Provider } from '@shared/data/types/provider'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { startTransition, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { useProviderSidebarAdapter } from './adapters/providerSidebarAdapter'
+import { useProviderDeepLinkImport } from './coordination/useProviderDeepLinkImport'
 import ProviderList from './ProviderList'
 import ProviderSetting from './ProviderSetting'
 
@@ -15,28 +13,22 @@ interface ProviderSettingsPageProps {
 export default function ProviderSettingsPage({ isOnboarding = false }: ProviderSettingsPageProps) {
   const search = useSearch({ strict: false }) as Record<string, string | undefined>
   const navigate = useNavigate()
-  const { providers: rawProviders, createProvider } = useProviders()
-  const { applyReorderedList } = useReorder('/providers')
+  const { providers: rawProviders } = useProviders()
   const [selectedProviderId, setSelectedProviderIdState] = useState<string>()
-  const [agentFilterEnabled, setAgentFilterEnabled] = useState(false)
 
   const providers = useMemo(() => (Array.isArray(rawProviders) ? rawProviders : []), [rawProviders])
+  const filterModeHint = search.filter === 'agent' ? 'agent' : undefined
 
   const setSelectedProviderId = useCallback((providerId: string | undefined) => {
     startTransition(() => setSelectedProviderIdState(providerId))
   }, [])
 
-  useEffect(() => {
-    if (!selectedProviderId && providers[0]) {
-      setSelectedProviderId(providers[0].id)
-    }
-  }, [providers, selectedProviderId, setSelectedProviderId])
+  useProviderDeepLinkImport(search.addProviderData, (providerId) => setSelectedProviderId(providerId))
 
   useEffect(() => {
     let shouldConsume = false
 
     if (search.filter === 'agent') {
-      setAgentFilterEnabled(true)
       shouldConsume = true
     }
 
@@ -52,15 +44,8 @@ export default function ProviderSettingsPage({ isOnboarding = false }: ProviderS
     }
   }, [navigate, providers, search, setSelectedProviderId])
 
-  const sidebar = useProviderSidebarAdapter({
-    providers,
-    searchAddProviderData: search.addProviderData,
-    createProvider,
-    onSelectProvider: (providerId) => setSelectedProviderId(providerId)
-  })
-
   useEffect(() => {
-    if (!selectedProviderId && providers[0]?.id) {
+    if (!selectedProviderId && providers[0]) {
       setSelectedProviderId(providers[0].id)
       return
     }
@@ -76,19 +61,11 @@ export default function ProviderSettingsPage({ isOnboarding = false }: ProviderS
   )
 
   return (
-    <div className="provider-settings-default-scope flex h-full min-h-0 min-w-0 w-full overflow-hidden bg-(--color-background)">
+    <div className="provider-settings-default-scope relative flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-(--color-background)">
       <ProviderList
-        providers={providers}
         selectedProviderId={selectedProviderId}
-        providerLogos={sidebar.providerLogos}
-        isOvmsSupported={sidebar.isOvmsSupported}
-        agentFilterEnabled={agentFilterEnabled}
-        onAgentFilterEnabledChange={setAgentFilterEnabled}
+        filterModeHint={filterModeHint}
         onSelectProvider={setSelectedProviderId}
-        onAddProvider={sidebar.handleAddProvider}
-        onEditProvider={sidebar.handleEditProvider}
-        onDeleteProvider={sidebar.handleDeleteProvider}
-        onReorder={applyReorderedList as (providers: Provider[]) => Promise<void>}
       />
       {selectedProvider && (
         <ProviderSetting providerId={selectedProvider.id} key={selectedProvider.id} isOnboarding={isOnboarding} />

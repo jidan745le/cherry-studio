@@ -1,6 +1,5 @@
 import { Button } from '@cherrystudio/ui'
 import { cn } from '@renderer/utils'
-import type { Provider } from '@shared/data/types/provider'
 import { Download, Plus, Search, X } from 'lucide-react'
 import type React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { modelListClasses } from '../components/ProviderSettingsPrimitives'
 
 interface ModelListSearchBarProps {
-  provider: Provider
+  showDownloadButton: boolean
   searchText: string
   isBusy: boolean
   onSearchTextChange: (text: string) => void
@@ -18,7 +17,7 @@ interface ModelListSearchBarProps {
 }
 
 const ModelListSearchBar: React.FC<ModelListSearchBarProps> = ({
-  provider,
+  showDownloadButton,
   searchText,
   isBusy,
   onSearchTextChange,
@@ -55,7 +54,7 @@ const ModelListSearchBar: React.FC<ModelListSearchBarProps> = ({
           <Download className={modelListClasses.toolbarIcon} />
           {t('settings.models.manage.fetch_list')}
         </Button>
-        {provider.id !== 'ovms' ? (
+        {!showDownloadButton ? (
           <Button
             onClick={onAddModel}
             size="icon-sm"

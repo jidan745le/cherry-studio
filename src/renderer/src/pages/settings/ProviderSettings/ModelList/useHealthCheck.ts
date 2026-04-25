@@ -1,93 +1,111 @@
 import { isRerankModel } from '@renderer/config/models/v2'
+import { useModels } from '@renderer/hooks/useModels'
+import { useProvider, useProviderApiKeys } from '@renderer/hooks/useProviders'
+import i18n from '@renderer/i18n'
 import { checkModelsHealth } from '@renderer/services/HealthCheckService'
 import type { ModelWithStatus } from '@renderer/types/healthCheck'
 import { HealthStatus } from '@renderer/types/healthCheck'
 import { splitApiKeyString } from '@renderer/utils/api'
 import { summarizeHealthResults } from '@renderer/utils/healthCheck'
-import type { Model } from '@shared/data/types/model'
-import type { Provider } from '@shared/data/types/provider'
 import { isEmpty } from 'lodash'
-import { useCallback, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useCallback, useMemo, useState } from 'react'
 
-import HealthCheckPopup from './HealthCheckPopup'
+import { PROVIDER_SETTINGS_MODEL_SWR_OPTIONS } from '../hooks/providerSetting/constants'
 
-export const useHealthCheck = (provider: Provider | undefined, apiKey: string, models: Model[]) => {
-  const { t } = useTranslation()
+export const useHealthCheck = (providerId: string) => {
+  const { provider } = useProvider(providerId)
+  const { models } = useModels({ providerId }, { swrOptions: PROVIDER_SETTINGS_MODEL_SWR_OPTIONS })
+  const { data: apiKeysData } = useProviderApiKeys(providerId)
   const [modelStatuses, setModelStatuses] = useState<ModelWithStatus[]>([])
   const [isChecking, setIsChecking] = useState(false)
+  const [healthCheckOpen, setHealthCheckOpen] = useState(false)
 
-  const runHealthCheck = useCallback(async () => {
-    if (!provider) return
+  const enabledApiKeys = useMemo(
+    () =>
+      splitApiKeyString(
+        apiKeysData?.keys
+          ?.filter((item) => item.isEnabled)
+          .map((item) => item.key)
+          .join(',') ?? ''
+      ),
+    [apiKeysData?.keys]
+  )
 
-    const modelsToCheck = models.filter((model) => !isRerankModel(model))
+  const openHealthCheck = useCallback(() => {
+    setHealthCheckOpen(true)
+  }, [])
 
-    if (isEmpty(modelsToCheck)) {
-      window.toast.error({
-        timeout: 5000,
-        title: t('settings.provider.no_models_for_check')
-      })
-      return
-    }
+  const closeHealthCheck = useCallback(() => {
+    setHealthCheckOpen(false)
+  }, [])
 
-    const keys = splitApiKeyString(apiKey)
+  const startHealthCheck = useCallback(
+    async ({ apiKeys, isConcurrent, timeout }: { apiKeys: string[]; isConcurrent: boolean; timeout: number }) => {
+      setHealthCheckOpen(false)
 
-    if (keys.length === 0) {
-      keys.push('')
-    }
+      if (!provider) return
 
-    const result = await HealthCheckPopup.show({
-      title: t('settings.models.check.title'),
-      apiKeys: keys
-    })
+      const modelsToCheck = models.filter((model) => !isRerankModel(model))
 
-    if (result.cancelled) {
-      return
-    }
-
-    const initialStatuses: ModelWithStatus[] = modelsToCheck.map((model) => ({
-      model,
-      checking: true,
-      status: HealthStatus.NOT_CHECKED,
-      keyResults: []
-    }))
-    setModelStatuses(initialStatuses)
-    setIsChecking(true)
-
-    const checkResults = await checkModelsHealth(
-      {
-        provider,
-        models: modelsToCheck,
-        apiKeys: result.apiKeys,
-        isConcurrent: result.isConcurrent,
-        timeout: result.timeout
-      },
-      (checkResult, index) => {
-        setModelStatuses((current) => {
-          const updated = [...current]
-          if (updated[index]) {
-            updated[index] = {
-              ...updated[index],
-              ...checkResult,
-              checking: false
-            }
-          }
-          return updated
+      if (isEmpty(modelsToCheck)) {
+        window.toast.error({
+          timeout: 5000,
+          title: i18n.t('settings.provider.no_models_for_check')
         })
+        return
       }
-    )
 
-    window.toast.info({
-      timeout: 5000,
-      title: summarizeHealthResults(checkResults, provider.name)
-    })
+      const keys = apiKeys.length > 0 ? [...apiKeys] : ['']
 
-    setIsChecking(false)
-  }, [models, provider, apiKey, t])
+      const initialStatuses: ModelWithStatus[] = modelsToCheck.map((model) => ({
+        model,
+        checking: true,
+        status: HealthStatus.NOT_CHECKED,
+        keyResults: []
+      }))
+      setModelStatuses(initialStatuses)
+      setIsChecking(true)
+
+      const checkResults = await checkModelsHealth(
+        {
+          provider,
+          models: modelsToCheck,
+          apiKeys: keys,
+          isConcurrent,
+          timeout
+        },
+        (checkResult, index) => {
+          setModelStatuses((current) => {
+            const updated = [...current]
+            if (updated[index]) {
+              updated[index] = {
+                ...updated[index],
+                ...checkResult,
+                checking: false
+              }
+            }
+            return updated
+          })
+        }
+      )
+
+      window.toast.info({
+        timeout: 5000,
+        title: summarizeHealthResults(checkResults, provider.name)
+      })
+
+      setIsChecking(false)
+    },
+    [models, provider]
+  )
 
   return {
     isChecking,
     modelStatuses,
-    runHealthCheck
+    availableApiKeys: enabledApiKeys,
+    healthCheckOpen,
+    openHealthCheck,
+    closeHealthCheck,
+    startHealthCheck
   }
 }

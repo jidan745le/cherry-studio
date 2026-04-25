@@ -1,49 +1,37 @@
-import EditModelPopup from '@renderer/pages/settings/ProviderSettings/EditModelPopup/EditModelPopup'
+import { useModelMutations } from '@renderer/hooks/useModels'
+import { useProvider } from '@renderer/hooks/useProviders'
+import i18n from '@renderer/i18n'
+import { useProviderModelSync } from '@renderer/pages/settings/ProviderSettings/hooks/useProviderModelSync'
 import { isNewApiProvider } from '@renderer/utils/provider.v2'
 import type { Model } from '@shared/data/types/model'
 import { parseUniqueModelId } from '@shared/data/types/model'
-import type { Provider } from '@shared/data/types/provider'
-import type { TFunction } from 'i18next'
 import { useCallback, useState } from 'react'
 
 import AddModelPopup from './AddModelPopup'
 import DownloadOVMSModelPopup from './DownloadOVMSModelPopup'
-import ManageModelsPopup from './ManageModelsPopup'
 import NewApiAddModelPopup from './NewApiAddModelPopup'
 
 type UseModelListActionsInput = {
-  provider: Provider | undefined
   providerId: string
-  filteredModels: Model[]
-  updateModel: (providerId: string, modelId: string, patch: Partial<Model>) => Promise<unknown>
-  syncProviderModels: (provider: Provider) => Promise<unknown>
-  t: TFunction
+  models: Model[]
 }
 
-export const useModelListActions = ({
-  provider,
-  providerId,
-  filteredModels,
-  updateModel,
-  syncProviderModels,
-  t
-}: UseModelListActionsInput) => {
+export const useModelListActions = ({ providerId, models }: UseModelListActionsInput) => {
+  const { provider } = useProvider(providerId)
+  const { updateModel } = useModelMutations()
+  const { syncProviderModels, isSyncingModels } = useProviderModelSync(providerId, { existingModels: models })
   const [isBulkUpdating, setIsBulkUpdating] = useState(false)
+  const [manageModelsOpen, setManageModelsOpen] = useState(false)
 
-  const handleEditModel = useCallback(
-    (model: Model) => {
-      if (provider) {
-        void EditModelPopup.show({ provider, model })
-      }
-    },
-    [provider]
-  )
-
-  const onManageModel = useCallback(() => {
+  const openManageModels = useCallback(() => {
     if (provider) {
-      void ManageModelsPopup.show({ providerId })
+      setManageModelsOpen(true)
     }
-  }, [provider, providerId])
+  }, [provider])
+
+  const closeManageModels = useCallback(() => {
+    setManageModelsOpen(false)
+  }, [])
 
   const onRefreshModels = useCallback(() => {
     if (provider) {
@@ -57,22 +45,22 @@ export const useModelListActions = ({
     }
 
     if (isNewApiProvider(provider)) {
-      void NewApiAddModelPopup.show({ title: t('settings.models.add.add_model'), provider })
+      void NewApiAddModelPopup.show({ title: i18n.t('settings.models.add.add_model'), provider })
       return
     }
 
-    void AddModelPopup.show({ title: t('settings.models.add.add_model'), provider })
-  }, [provider, t])
+    void AddModelPopup.show({ title: i18n.t('settings.models.add.add_model'), provider })
+  }, [provider])
 
   const onDownloadModel = useCallback(() => {
     if (provider) {
-      void DownloadOVMSModelPopup.show({ title: t('ovms.download.title'), provider })
+      void DownloadOVMSModelPopup.show({ title: i18n.t('ovms.download.title'), provider })
     }
-  }, [provider, t])
+  }, [provider])
 
   const updateVisibleModelsEnabledState = useCallback(
-    async (enabled: boolean) => {
-      const targetModels = filteredModels.filter((model) => model.isEnabled !== enabled)
+    async (visibleModels: Model[], enabled: boolean) => {
+      const targetModels = visibleModels.filter((model) => model.isEnabled !== enabled)
 
       if (targetModels.length === 0) {
         return
@@ -91,25 +79,18 @@ export const useModelListActions = ({
         setIsBulkUpdating(false)
       }
     },
-    [filteredModels, updateModel]
-  )
-
-  const toggleModelEnabled = useCallback(
-    async (model: Model, enabled: boolean) => {
-      const { modelId } = parseUniqueModelId(model.id)
-      await updateModel(model.providerId, modelId, { isEnabled: enabled })
-    },
     [updateModel]
   )
 
   return {
-    handleEditModel,
-    onManageModel,
+    manageModelsOpen,
+    openManageModels,
+    closeManageModels,
     onRefreshModels,
     onAddModel,
     onDownloadModel,
     updateVisibleModelsEnabledState,
-    toggleModelEnabled,
-    isBulkUpdating
+    isBulkUpdating,
+    isSyncingModels
   }
 }

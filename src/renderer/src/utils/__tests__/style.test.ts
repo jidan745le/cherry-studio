@@ -96,5 +96,15 @@ describe('style', () => {
       const result2 = generateColorFromChar('B')
       expect(result1).not.toBe(result2)
     })
+
+    it('should generate a valid hex color code for empty input', () => {
+      const result = generateColorFromChar('')
+      expect(result).toMatch(/^#[0-9a-fA-F]{6}$/)
+    })
+
+    it('should generate a valid hex color code for whitespace-only input', () => {
+      const result = generateColorFromChar('   ')
+      expect(result).toMatch(/^#[0-9a-fA-F]{6}$/)
+    })
   })
 })

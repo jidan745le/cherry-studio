@@ -21,7 +21,7 @@ interface ShowParams {
   name?: string
 }
 
-interface ImportedProviderDraft {
+interface ImportedProviderData {
   id: string
   name: string
   type: ProviderType
@@ -30,7 +30,7 @@ interface ImportedProviderDraft {
 }
 
 interface PopupResult {
-  updatedProvider?: ImportedProviderDraft
+  updatedProvider?: ImportedProviderData
   isNew: boolean
   displayName: string
 }
@@ -52,7 +52,7 @@ const PopupContainer = ({ id, apiKey: newApiKey, baseUrl, type, name, resolve }:
     params: { providerId: id },
     enabled: foundProvider !== undefined
   })
-  const baseProvider: ImportedProviderDraft = foundProvider
+  const baseProvider: ImportedProviderData = foundProvider
     ? {
         id: foundProvider.id,
         name: foundProvider.name,
@@ -91,7 +91,7 @@ const PopupContainer = ({ id, apiKey: newApiKey, baseUrl, type, name, resolve }:
       return
     }
 
-    const updatedProvider: ImportedProviderDraft = {
+    const updatedProvider: ImportedProviderData = {
       ...baseProvider,
       apiKey: finalApiKey,
       apiHost: finalApiHost

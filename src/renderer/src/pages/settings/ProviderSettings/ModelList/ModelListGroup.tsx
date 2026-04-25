@@ -1,6 +1,5 @@
 import { Flex } from '@cherrystudio/ui'
 import CustomCollapse from '@renderer/components/CustomCollapse'
-import type { ModelWithStatus } from '@renderer/types/healthCheck'
 import type { Model } from '@shared/data/types/model'
 import React, { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,12 +7,11 @@ import { useTranslation } from 'react-i18next'
 import { modelListClasses } from '../components/ProviderSettingsPrimitives'
 import { getModelGroupLabel } from './grouping'
 import ModelListItem from './ModelListItem'
+import type { ModelListGroupItem } from './useModelListSections'
 
 interface ModelListGroupProps {
   groupName: string
-  models: Model[]
-  duplicateModelNames: Set<string>
-  modelStatusMap: Map<string, ModelWithStatus>
+  items: ModelListGroupItem[]
   isCompact: boolean
   isUltraCompact: boolean
   defaultOpen: boolean
@@ -24,9 +22,7 @@ interface ModelListGroupProps {
 
 const ModelListGroup: React.FC<ModelListGroupProps> = ({
   groupName,
-  models,
-  duplicateModelNames,
-  modelStatusMap,
+  items,
   isCompact,
   isUltraCompact,
   defaultOpen,
@@ -45,7 +41,7 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
           <Flex className={modelListClasses.groupHeaderLabel}>
             <span className={modelListClasses.groupTitle}>{groupLabel}</span>
             <span className={modelListClasses.groupHeaderRule} />
-            <span className={modelListClasses.groupCount}>{models.length}</span>
+            <span className={modelListClasses.groupCount}>{items.length}</span>
           </Flex>
         }
         extra={null}
@@ -61,12 +57,12 @@ const ModelListGroup: React.FC<ModelListGroupProps> = ({
           background: 'transparent'
         }}>
         <div className="flex min-w-0 w-full flex-col gap-1 px-3 pb-[2px] pt-[2px]">
-          {models.map((model) => (
+          {items.map(({ model, modelStatus, showIdentifier }) => (
             <ModelListItem
               key={model.id}
               model={model}
-              modelStatus={modelStatusMap.get(model.id)}
-              showIdentifier={duplicateModelNames.has(model.name)}
+              modelStatus={modelStatus}
+              showIdentifier={showIdentifier}
               isCompact={isCompact}
               isUltraCompact={isUltraCompact}
               onEdit={onEditModel}
